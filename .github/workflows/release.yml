@@ -25,7 +25,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and publish installer
-        run: npm run release:win
+      - name: Build installer
+        run: npm run package:win
+
+      - name: Publish release assets
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $tag = "v$version"
+          $assets = @(
+            "dist/QuietReader-Setup-$version.exe",
+            "dist/QuietReader-Setup-$version.exe.blockmap",
+            "dist/latest.yml"
+          )
+
+          gh release view $tag --repo "${{ github.repository }}" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $assets --repo "${{ github.repository }}" --clobber
+          } else {
+            gh release create $tag $assets --repo "${{ github.repository }}" --title $version --generate-notes
+          }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

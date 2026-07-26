@@ -10,7 +10,7 @@
     "prepare": "npm run prepare-assets && npm run build:styles",
     "start": "npm run prepare && electron .",
     "package:win": "npm run prepare && electron-builder --win nsis --x64",
-    "release:win": "npm run prepare && electron-builder --win nsis --x64 --publish always"
+    "release:win": "npm run package:win"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
