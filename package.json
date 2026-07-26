@@ -9,7 +9,7 @@
     "build:styles": "tailwindcss -c tailwind.config.cjs -i app/tailwind.input.css -o app/vendor/tailwind.css --minify",
     "prepare": "npm run prepare-assets && npm run build:styles",
     "start": "npm run prepare && electron .",
-    "package:win": "npm run prepare && electron-builder --win nsis --x64",
+    "package:win": "npm run prepare && electron-builder --win --x64",
     "release:win": "npm run package:win"
   },
   "dependencies": {
@@ -24,7 +24,7 @@
   },
   "build": {
     "appId": "com.fritz.quietreader",
-    "productName": "静读阅读器",
+    "productName": "闈欒闃呰鍣?,
     "artifactName": "QuietReader-Setup-${version}.${ext}",
     "publish": [
       {
@@ -46,22 +46,31 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ]
+    },
+    "portable": {
+      "artifactName": "QuietReader-Portable-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "静读阅读器",
+      "shortcutName": "闈欒闃呰鍣?,
       "perMachine": false
     },
     "fileAssociations": [
       {
         "ext": "epub",
         "name": "QuietReader.epub",
-        "description": "EPUB 电子书",
+        "description": "EPUB 鐢靛瓙涔?,
         "role": "Editor"
       }
     ]

@@ -36,6 +36,7 @@ jobs:
           $assets = @(
             "dist/QuietReader-Setup-$version.exe",
             "dist/QuietReader-Setup-$version.exe.blockmap",
+            "dist/QuietReader-Portable-$version.exe",
             "dist/latest.yml"
           )
 
