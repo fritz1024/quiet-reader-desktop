@@ -1,0 +1,60 @@
+{
+  "name": "quiet-reader-desktop",
+  "version": "1.0.2",
+  "description": "A local EPUB reader with editing support.",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "prepare-assets": "node scripts/prepare-assets.cjs",
+    "build:styles": "tailwindcss -c tailwind.config.cjs -i app/tailwind.input.css -o app/vendor/tailwind.css --minify",
+    "prepare": "npm run prepare-assets && npm run build:styles",
+    "start": "npm run prepare && electron .",
+    "package:win": "npm run prepare && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "tailwindcss": "^3.4.17"
+  },
+  "build": {
+    "appId": "com.fritz.quietreader",
+    "productName": "静读阅读器",
+    "artifactName": "QuietReader-Setup-${version}.${ext}",
+    "files": [
+      "app/**/*",
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "静读阅读器",
+      "perMachine": false
+    },
+    "fileAssociations": [
+      {
+        "ext": "epub",
+        "name": "QuietReader.epub",
+        "description": "EPUB 电子书",
+        "role": "Editor"
+      }
+    ]
+  }
+}

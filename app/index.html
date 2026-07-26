@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f7f4">
+  <title>阅读器</title>
+
+  <link rel="stylesheet" href="vendor/tailwind.css">
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+  <script src="vendor/jszip.min.js"></script>
+  <style>
+    :root {
+      --bg: #f7f7f4;
+      --surface: #fffefa;
+      --surface-2: #f0f2ee;
+      --text: #202827;
+      --muted: #7b8581;
+      --line: #e4e7e2;
+      --accent: #1e756c;
+      --accent-dark: #155b54;
+      --accent-soft: #e1f1ed;
+      --warm: #cf6b4f;
+      --shadow: rgba(31, 43, 40, .08);
+    }
+
+    body[data-theme="green"] { --bg: #f3f7f1; --surface: #fbfdf9; --surface-2: #e7f0e4; --text: #263127; --muted: #778476; --line: #dce7d9; --accent: #477b51; --accent-dark: #35623e; --accent-soft: #e1eee0; --warm: #b86a48; }
+    body[data-theme="blue"] { --bg: #f2f7f8; --surface: #fcfefe; --surface-2: #e5eff1; --text: #27343a; --muted: #738289; --line: #dce7e9; --accent: #2e7484; --accent-dark: #225b68; --accent-soft: #dff0f2; --warm: #be6848; }
+    body[data-theme="dark"] { --bg: #161e1d; --surface: #202a28; --surface-2: #293632; --text: #eef3ef; --muted: #a4b2ac; --line: #3b4945; --accent: #73cbb8; --accent-dark: #9be3d0; --accent-soft: #294d46; --warm: #e99a76; }
+
+    * { box-sizing: border-box; }
+    html, body { min-width: 320px; min-height: 100%; }
+    body { margin: 0; overflow: hidden; color: var(--text); background: var(--bg); font-family: Inter, "Noto Sans SC", "PingFang SC", sans-serif; transition: background .2s ease, color .2s ease; }
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 27%, transparent); outline-offset: 2px; }
+    .app-shell { position: relative; height: 100dvh; min-height: 560px; }
+    .topbar { height: 72px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(18px); }
+    .brand-mark { display: grid; width: 36px; height: 36px; place-items: center; color: #fff; background: var(--accent); border-radius: 10px; box-shadow: 0 7px 15px color-mix(in srgb, var(--accent) 25%, transparent); }
+    .icon-button { display: grid; width: 38px; height: 38px; place-items: center; color: var(--muted); border: 1px solid transparent; border-radius: 9px; transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease; }
+    .icon-button:hover { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 14%, transparent); }
+    .icon-button:active { transform: translateY(1px); }
+    .primary-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 9px; padding: 0 15px; color: #fff; background: var(--accent); border: 1px solid var(--accent); border-radius: 9px; box-shadow: 0 7px 14px color-mix(in srgb, var(--accent) 17%, transparent); font-size: 13px; font-weight: 600; transition: background .16s ease, transform .16s ease, box-shadow .16s ease; }
+    .primary-button:hover { background: var(--accent-dark); box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 23%, transparent); }
+    .primary-button:active { transform: translateY(1px); }
+    .secondary-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; font-size: 13px; font-weight: 600; transition: background .16s ease, border-color .16s ease, color .16s ease; }
+    .secondary-button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); }
+    .copy-button { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 10%, transparent); }
+    .copy-button:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .update-folder-button, .source-action-button { display: none; }
+    .update-folder-button.show, .source-action-button.show { display: inline-flex; }
+    .progress-track { height: 2px; background: transparent; }
+    .progress-fill { width: 0; height: 100%; background: var(--accent); transition: width .12s linear; }
+    .sidebar { position: fixed; top: 72px; bottom: 0; left: 0; z-index: 30; width: 292px; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--line); transform: translateX(-100%); transition: transform .24s ease; }
+    .sidebar.open { transform: translateX(0); }
+    .reader-shell { position: fixed; top: 74px; right: 0; bottom: 0; left: 0; overflow-y: auto; scroll-behavior: smooth; transition: left .24s ease; }
+    .reader-shell.sidebar-open { left: 292px; }
+    .reader-paper { max-width: 760px; min-height: calc(100% - 48px); margin: 24px auto 48px; padding: 68px 72px 100px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 30px var(--shadow); }
+    .chapter-title { margin: 0 auto; color: var(--text); font-family: "Noto Serif SC", Songti SC, serif; font-size: clamp(27px, 3.1vw, 38px); font-weight: 600; letter-spacing: 0; line-height: 1.4; text-align: center; }
+    .chapter-divider { width: 52px; height: 3px; margin: 24px auto 16px; background: var(--accent); border-radius: 99px; }
+    .chapter-meta { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 12px; }
+    .meta-dot { width: 3px; height: 3px; background: var(--line); border-radius: 50%; }
+    .meta-accent { color: var(--warm); font-weight: 600; }
+    .chapter-body { color: var(--text); font-family: "Noto Serif SC", Songti SC, serif; }
+    .chapter-body.direct-editing { outline: 1px dashed color-mix(in srgb, var(--accent) 48%, var(--line)); outline-offset: 12px; }
+    .chapter-body[contenteditable="true"] { caret-color: var(--accent); cursor: text; }
+    .chapter-body p { margin: 0 0 1.15em; font-size: 18px; line-height: 2.05; text-align: justify; text-indent: 2em; overflow-wrap: break-word; }
+    .chapter-body h2, .chapter-body h3, .chapter-body h4 { margin: 2em 0 .8em; color: var(--text); font-family: Inter, "Noto Sans SC", sans-serif; font-weight: 700; line-height: 1.45; }
+    .chapter-body h2 { padding-bottom: .45em; border-bottom: 1px solid var(--line); font-size: 1.35em; }
+    .chapter-body h3 { font-size: 1.18em; }
+    .chapter-body h4 { font-size: 1.05em; }
+    .chapter-body ul, .chapter-body ol { margin: 0 auto 1.3em; padding-left: 1.6em; font-size: 18px; line-height: 1.9; }
+    .chapter-body li + li { margin-top: .25em; }
+    .chapter-body blockquote { margin: 1.5em 0; padding: .5em 1.15em; color: var(--muted); border-left: 3px solid var(--accent); font-size: 17px; line-height: 1.9; }
+    .chapter-body blockquote p { margin-bottom: .3em; text-indent: 0; color: inherit; }
+    .chapter-body pre { margin: 1.5em 0; padding: 16px; overflow-x: auto; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; font-family: Consolas, "Courier New", monospace; font-size: 14px; line-height: 1.65; white-space: pre; }
+    .chapter-body code { padding: .12em .35em; color: var(--warm); background: var(--surface-2); border-radius: 4px; font-family: Consolas, "Courier New", monospace; font-size: .86em; }
+    .chapter-body pre code { padding: 0; color: inherit; background: transparent; font-size: inherit; }
+    .chapter-body hr { width: 120px; margin: 2.5em auto; border: 0; border-top: 1px solid var(--line); }
+    .chapter-body a { color: var(--accent); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 3px; }
+    .chapter-body.epub-html img { display: block; max-width: 100%; height: auto; margin: 1.5em auto; object-fit: contain; }
+    .chapter-body.epub-html figure { max-width: 100%; margin: 1.5em auto; }
+    .chapter-body.epub-html figcaption { margin-top: .7em; color: var(--muted); font-size: 13px; line-height: 1.7; text-align: center; }
+    .chapter-body.epub-html table { display: block; max-width: 100%; margin: 1.5em 0; overflow-x: auto; border-collapse: collapse; font-size: 15px; line-height: 1.7; }
+    .chapter-body.epub-html th, .chapter-body.epub-html td { padding: .55em .75em; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .chapter-body.epub-cover { display: grid; min-height: calc(100dvh - 235px); place-items: center; }
+    .chapter-body.epub-cover > * { max-width: 100%; }
+    .chapter-body.epub-cover img { width: auto; max-width: min(100%, 580px); max-height: calc(100dvh - 245px); margin: 0 auto; }
+    .chapter-end { margin-top: 64px; padding-top: 25px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; text-align: center; }
+    .settings-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 310px; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
+    .settings-panel.show { display: block; animation: panel-in .16s ease-out; }
+    .import-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 310px; padding: 16px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
+    .import-panel.show { display: block; animation: panel-in .16s ease-out; }
+    .import-choice { display: flex; width: 100%; align-items: center; gap: 12px; padding: 13px 12px; color: var(--text); background: transparent; border: 1px solid transparent; border-radius: 8px; text-align: left; transition: color .16s ease, background .16s ease, border-color .16s ease; }
+    .import-choice:hover { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); }
+    .import-choice + .import-choice { margin-top: 5px; }
+    .import-choice-icon { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 8px; }
+    .import-choice-title { font-size: 13px; font-weight: 700; line-height: 1.35; }
+    .import-choice-note { margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .editor-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 440px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 96px); overflow-y: auto; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
+    .editor-panel.show { display: block; animation: panel-in .16s ease-out; }
+    @keyframes panel-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
+    .setting-label { margin-bottom: 9px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .theme-swatch { position: relative; height: 34px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; transition: transform .16s ease, border-color .16s ease; }
+    .theme-swatch:hover { transform: translateY(-1px); }
+    .theme-swatch.active { border: 3px solid var(--accent); }
+    .theme-swatch[data-theme="default"] { background: #f7f7f4; }
+    .theme-swatch[data-theme="green"] { background: #e1eee0; }
+    .theme-swatch[data-theme="blue"] { background: #dff0f2; }
+    .theme-swatch[data-theme="dark"] { background: #293632; }
+    .setting-option { min-height: 34px; padding: 0 9px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: 12px; transition: all .16s ease; }
+    .setting-option:hover { color: var(--accent); border-color: var(--accent); }
+    .setting-option.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .edit-check { display: flex; min-height: 36px; align-items: center; gap: 8px; padding: 0 9px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: 12px; transition: color .16s ease, border-color .16s ease, background .16s ease; }
+    .edit-check:has(input:checked) { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); }
+    .edit-check input { width: 14px; height: 14px; accent-color: var(--accent); }
+    .editor-note { padding: 10px 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; font-size: 11px; line-height: 1.65; }
+    .editor-result { min-height: 18px; color: var(--accent); font-size: 11px; font-weight: 600; line-height: 1.6; }
+    .upload-zone { position: relative; min-height: 214px; padding: 30px; text-align: center; background: color-mix(in srgb, var(--surface) 86%, var(--accent-soft)); border: 1px dashed color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: 14px; cursor: pointer; transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease; }
+    .upload-zone:hover, .upload-zone.dragover { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 14px 30px var(--shadow); transform: translateY(-2px); }
+    .upload-icon { display: grid; width: 50px; height: 50px; margin: 0 auto 16px; place-items: center; color: var(--accent); background: var(--surface); border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 7px 17px var(--shadow); font-size: 19px; }
+    .empty-grid { position: relative; }
+    .empty-grid::before, .empty-grid::after { position: absolute; z-index: -1; width: 180px; height: 140px; content: ""; background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 14px 14px; opacity: .6; }
+    .empty-grid::before { top: -12px; left: -28px; }
+    .empty-grid::after { right: -28px; bottom: -16px; }
+    .chapter-list { list-style: none; }
+    .chapter-item { position: relative; display: flex; gap: 12px; align-items: flex-start; width: 100%; padding: 11px 14px; color: var(--muted); border: 1px solid transparent; border-radius: 9px; cursor: pointer; text-align: left; transition: color .15s ease, background .15s ease, border-color .15s ease; }
+    .chapter-item:hover { color: var(--text); background: var(--surface-2); }
+    .chapter-item.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 15%, transparent); }
+    .chapter-number { flex: 0 0 24px; padding-top: 1px; color: inherit; font-size: 11px; font-weight: 700; text-align: right; }
+    .chapter-name { min-width: 0; overflow: hidden; font-size: 13px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+    .bottom-nav { --sidebar-width: 292px; position: fixed; left: 50%; bottom: 18px; z-index: 50; display: flex; gap: 3px; padding: 4px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 10px 30px var(--shadow); opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: left .24s ease, opacity .18s ease, transform .18s ease; backdrop-filter: blur(14px); }
+    .bottom-nav.sidebar-open { left: calc(50% + var(--sidebar-width) / 2); }
+    .reader-shell:hover ~ .bottom-nav, .bottom-nav:hover, .bottom-nav:focus-within { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+    .nav-button { display: inline-flex; min-width: 108px; min-height: 34px; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; color: var(--muted); background: transparent; border: 0; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .16s ease; }
+    .nav-button:hover:not(:disabled) { color: var(--accent); background: var(--accent-soft); }
+    .nav-button:disabled { cursor: not-allowed; opacity: .35; }
+     .toast { position: fixed; top: 90px; left: 50%; z-index: 200; display: flex; align-items: center; gap: 8px; padding: 10px 15px; color: #fff; background: var(--accent-dark); border-radius: 9px; box-shadow: 0 12px 25px var(--shadow); font-size: 13px; opacity: 0; pointer-events: none; transform: translate(-50%, -10px); transition: all .2s ease; }
+     .toast.show { opacity: 1; transform: translate(-50%, 0); }
+     .reader-dialog-backdrop { position: fixed; inset: 0; z-index: 240; display: grid; place-items: center; padding: 20px; background: color-mix(in srgb, var(--text) 24%, transparent); opacity: 0; pointer-events: none; transition: opacity .18s ease; backdrop-filter: blur(4px); }
+     .reader-dialog-backdrop.show { opacity: 1; pointer-events: auto; }
+     .reader-dialog { width: min(420px, 100%); padding: 22px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 24px 70px color-mix(in srgb, var(--text) 22%, transparent); transform: translateY(8px) scale(.98); transition: transform .18s ease; }
+     .reader-dialog-backdrop.show .reader-dialog { transform: translateY(0) scale(1); }
+     .reader-dialog-head { display: flex; align-items: flex-start; gap: 13px; }
+     .reader-dialog-icon { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; color: var(--warm); background: color-mix(in srgb, var(--warm) 13%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warm) 24%, var(--line)); border-radius: 10px; }
+     .reader-dialog-title { font-size: 15px; font-weight: 700; line-height: 1.45; }
+     .reader-dialog-message { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+     .reader-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+     .reader-dialog-actions .secondary-button, .reader-dialog-actions .primary-button { min-height: 36px; padding: 0 12px; font-size: 12px; }
+     .reader-dialog-actions .dialog-discard { color: var(--warm); border-color: color-mix(in srgb, var(--warm) 30%, var(--line)); }
+     .reader-dialog-actions .dialog-discard:hover { color: #fff; background: var(--warm); border-color: var(--warm); }
+     .loading { position: fixed; inset: 0; z-index: 190; display: none; place-items: center; background: color-mix(in srgb, var(--bg) 60%, transparent); backdrop-filter: blur(3px); }
+    .loading.show { display: grid; }
+    .spinner { width: 19px; height: 19px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .scrollbar-thin::-webkit-scrollbar, .reader-shell::-webkit-scrollbar, .sidebar::-webkit-scrollbar { width: 9px; }
+    .scrollbar-thin::-webkit-scrollbar-track, .reader-shell::-webkit-scrollbar-track, .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb, .reader-shell::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb { background: var(--line); border: 3px solid transparent; border-radius: 99px; background-clip: padding-box; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover, .reader-shell::-webkit-scrollbar-thumb:hover, .sidebar::-webkit-scrollbar-thumb:hover { background-color: var(--muted); }
+    @media (max-width: 840px) {
+      .topbar { height: 64px; }
+      .sidebar { top: 64px; width: min(310px, 86vw); box-shadow: 12px 0 30px var(--shadow); }
+      .reader-shell { top: 66px; }
+      .reader-shell.sidebar-open { left: min(310px, 86vw); }
+      .reader-paper { min-height: calc(100% - 24px); margin: 12px 14px 36px; padding: 43px 26px 90px; border-radius: 12px; }
+      .chapter-body p, .chapter-body ul, .chapter-body ol { font-size: 17px; }
+      .bottom-nav { --sidebar-width: min(310px, 86vw); bottom: 10px; opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+      .nav-button { min-width: 88px; }
+    }
+     @media (max-width: 540px) {
+      .brand-copy { display: none; }
+      .topbar { padding: 0 13px; }
+      .topbar .primary-button { min-height: 36px; padding: 0 11px; font-size: 12px; }
+      .topbar .primary-button span { display: none; }
+       .update-folder-button.show { display: grid; width: 38px; height: 38px; padding: 0; }
+       .update-folder-button span { display: none; }
+       .book-import-button { display: grid; width: 38px; height: 38px; padding: 0; }
+       .book-import-button span { display: none; }
+      .editor-trigger { display: grid; width: 38px; height: 38px; padding: 0; }
+      .editor-trigger span { display: none; }
+      .punctuation-rules-trigger { display: grid; width: 38px; height: 38px; padding: 0; }
+      .punctuation-rules-trigger span { display: none; }
+       .copy-button { display: grid; width: 38px; height: 38px; padding: 0; }
+       .copy-button span { display: none; }
+       .settings-panel { top: 72px; right: 12px; width: min(310px, calc(100vw - 24px)); }
+       .import-panel { top: 72px; right: 12px; width: min(310px, calc(100vw - 24px)); }
+       .editor-panel { top: 72px; right: 12px; width: min(440px, calc(100vw - 24px)); }
+      .empty-grid::before, .empty-grid::after { display: none; }
+      .upload-zone { padding: 26px 18px; }
+      .sidebar { width: min(260px, 78vw); box-shadow: 12px 0 30px var(--shadow); }
+      .reader-shell.sidebar-open { left: 0; }
+      .reader-paper { margin: 0; min-height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+      .chapter-title { font-size: 26px; }
+       .bottom-nav { width: calc(100vw - 24px); justify-content: space-between; }
+       .bottom-nav.sidebar-open { left: 50%; }
+       .nav-button { min-width: 0; flex: 1; padding: 0 8px; }
+       .nav-button span { display: none; }
+       .reader-dialog-actions { flex-direction: column-reverse; }
+       .reader-dialog-actions button { width: 100%; }
+     }
+  </style>
+</head>
+<body data-theme="default">
+  <div class="app-shell">
+    <header class="topbar fixed inset-x-0 top-0 z-50 flex items-center gap-3 px-5" aria-label="顶部工具栏">
+      <button class="icon-button shrink-0" id="toggleSidebar" title="打开目录" aria-label="打开目录">
+        <i class="fa-solid fa-bars-staggered text-[15px]"></i>
+      </button>
+      <div class="brand-mark shrink-0"><i class="fa-solid fa-book-open text-[15px]"></i></div>
+      <div class="brand-copy min-w-0">
+        <div class="text-[14px] font-bold tracking-[-.01em]" id="bookTitle">阅读器</div>
+        <div class="mt-0.5 text-[10px] font-semibold uppercase tracking-[.12em] text-muted">Quiet reading space</div>
+      </div>
+      <div class="ml-auto flex items-center gap-1.5">
+        <button class="secondary-button book-import-button" id="openImportBtn" title="导入书籍或章节文件夹" aria-label="导入书籍或章节文件夹" aria-expanded="false">
+          <i class="fa-solid fa-file-import text-[12px]"></i><span>导入</span>
+        </button>
+        <button class="secondary-button update-folder-button" id="updateFolderBtn" title="更新章节" aria-label="更新章节">
+          <i class="fa-solid fa-arrows-rotate text-[12px]"></i><span>更新章节</span>
+        </button>
+        <button class="secondary-button source-action-button" id="reloadSourceBtn" title="从原文件重新读取" aria-label="从原文件重新读取">
+          <i class="fa-solid fa-rotate text-[12px]"></i><span>重新载入</span>
+        </button>
+        <button class="icon-button source-action-button" id="showSourceBtn" title="在资源管理器中显示原始文件" aria-label="在资源管理器中显示原始文件">
+          <i class="fa-solid fa-folder-tree text-[14px]"></i>
+        </button>
+        <button class="secondary-button editor-trigger" id="editorBtn" title="直接编辑正文" aria-label="直接编辑正文">
+          <i class="fa-solid fa-pen-to-square text-[12px]"></i><span>编辑正文</span>
+        </button>
+        <button class="secondary-button punctuation-rules-trigger" id="punctuationRulesBtn" title="标点符号替换规则" aria-label="标点符号替换规则">
+          <i class="fa-solid fa-wand-magic-sparkles text-[12px]"></i><span>标点规则</span>
+        </button>
+        <button class="secondary-button copy-button" id="toolbarCopyBtn" title="复制本章正文" aria-label="复制本章正文">
+          <i class="fa-regular fa-copy text-[14px]"></i><span>复制正文</span>
+        </button>
+        <button class="icon-button" id="settingsBtn" title="阅读设置" aria-label="阅读设置">
+          <i class="fa-solid fa-sliders text-[15px]"></i>
+        </button>
+        <input type="file" id="bookInput" accept=".txt,.md,.markdown,.epub,.zip,text/plain,application/epub+zip,application/zip" hidden>
+        <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+      </div>
+    </header>
+
+    <div class="progress-track fixed inset-x-0 top-[64px] z-[55] sm:top-[72px]">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <aside class="sidebar scrollbar-thin" id="sidebar" aria-label="章节目录">
+      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] px-5 py-5 backdrop-blur-md">
+        <div>
+          <div class="text-[13px] font-bold">章节目录</div>
+          <div class="mt-1 text-[11px] text-muted" id="sidebarBookName">尚未导入书籍</div>
+        </div>
+        <span class="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--accent)]" id="chapterCount">0 章</span>
+      </div>
+      <div class="px-3 py-3">
+        <div class="mb-2 flex items-center justify-between px-2 text-[10px] font-bold uppercase tracking-[.12em] text-muted">
+          <span>Contents</span><i class="fa-solid fa-list-ul text-[10px]"></i>
+        </div>
+        <ul class="chapter-list space-y-1" id="chapterList"></ul>
+        <div class="hidden px-3 py-8 text-center text-xs text-muted" id="emptyChapterList">导入文件夹后，章节会显示在这里</div>
+      </div>
+    </aside>
+
+    <main class="reader-shell scrollbar-thin" id="readerContainer" style="display:none;" aria-label="正文阅读区">
+      <article class="reader-paper" id="readerContent"></article>
+    </main>
+
+    <main class="reader-shell scrollbar-thin" id="uploadArea" aria-label="导入书籍">
+      <div class="mx-auto flex min-h-full w-full max-w-[780px] items-center justify-center px-5 py-12 sm:px-8">
+        <div class="empty-grid w-full max-w-[620px] text-center">
+          <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-[var(--surface)] px-3 py-1.5 text-[11px] font-bold tracking-[.08em] text-[var(--accent)] shadow-sm">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--warm)]"></span> YOUR PRIVATE LIBRARY
+          </div>
+          <h1 class="font-serif text-[clamp(30px,5vw,50px)] font-semibold leading-[1.25] tracking-[-.02em]">把下一本书带进来</h1>
+          <p class="mx-auto mt-4 max-w-[450px] text-[13px] leading-7 text-muted">在安静、专注的阅读空间里，继续你的故事。支持 TXT、EPUB 和 ZIP 书籍。</p>
+          <div class="mt-9">
+            <div class="upload-zone" id="folderUploadBox" tabindex="0" role="button" aria-label="导入书籍或章节文件夹">
+              <div class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+              <div class="text-[15px] font-bold">拖入书籍文件或小说文件夹</div>
+              <div class="mt-2 text-xs leading-6 text-muted">也可以点击选择，导入后会自动解析章节</div>
+              <div class="mt-5 flex flex-wrap items-center justify-center gap-2 text-[10px] font-semibold text-muted">
+                <span class="rounded-md bg-[var(--surface)] px-2.5 py-1.5 shadow-sm">.TXT</span>
+                <span class="rounded-md bg-[var(--surface)] px-2.5 py-1.5 shadow-sm">.EPUB</span>
+                <span class="rounded-md bg-[var(--surface)] px-2.5 py-1.5 shadow-sm">.ZIP</span>
+              </div>
+            </div>
+            <button class="secondary-button mt-4" id="loadDemoBtn"><i class="fa-solid fa-wand-magic-sparkles text-[var(--warm)]"></i>先看看阅读界面</button>
+          </div>
+          <div class="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-muted">
+            <span><i class="fa-solid fa-check mr-1.5 text-[var(--accent)]"></i>本地处理</span>
+            <span><i class="fa-solid fa-bookmark mr-1.5 text-[var(--accent)]"></i>自动保存进度</span>
+            <span><i class="fa-solid fa-eye-slash mr-1.5 text-[var(--accent)]"></i>无需上传</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <nav class="bottom-nav" id="pageNav" aria-label="章节翻页">
+      <button class="nav-button" id="scrollTopBtn" type="button" title="回到顶部" aria-label="回到顶部"><i class="fa-solid fa-angles-up"></i><span>顶部</span></button>
+      <button class="nav-button" id="prevPageBtn" type="button"><i class="fa-solid fa-arrow-left-long"></i><span>上一章</span></button>
+      <button class="nav-button" id="nextPageBtn" type="button"><span>下一章</span><i class="fa-solid fa-arrow-right-long"></i></button>
+      <button class="nav-button" id="scrollBottomBtn" type="button" title="到达底部" aria-label="到达底部"><i class="fa-solid fa-angles-down"></i><span>底部</span></button>
+    </nav>
+
+    <section class="settings-panel" id="settingsPanel" aria-label="阅读设置">
+      <div class="mb-5 flex items-center justify-between border-b border-line pb-4">
+        <div><div class="text-[14px] font-bold">阅读设置</div><div class="mt-1 text-[11px] text-muted">调整到舒服的节奏</div></div>
+        <button class="icon-button -mr-2" id="closeSettingsBtn" title="关闭设置" aria-label="关闭设置"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="mb-5">
+        <div class="setting-label">文字大小</div>
+        <div class="grid grid-cols-[38px_1fr_38px] items-center gap-2">
+          <button class="setting-option px-0 text-[11px]" id="fontMinus" aria-label="减小文字">A−</button>
+          <div class="text-center text-xs font-bold" id="fontSizeValue">18 px</div>
+          <button class="setting-option px-0 text-[11px]" id="fontPlus" aria-label="增大文字">A＋</button>
+        </div>
+      </div>
+      <div class="mb-5">
+        <div class="setting-label">阅读主题</div>
+        <div class="grid grid-cols-4 gap-2">
+          <button class="theme-swatch active" data-theme="default" title="暖白主题" aria-label="暖白主题"></button>
+          <button class="theme-swatch" data-theme="green" title="淡绿主题" aria-label="淡绿主题"></button>
+          <button class="theme-swatch" data-theme="blue" title="浅蓝主题" aria-label="浅蓝主题"></button>
+          <button class="theme-swatch" data-theme="dark" title="夜间主题" aria-label="夜间主题"></button>
+        </div>
+      </div>
+      <div class="mb-5">
+        <div class="setting-label">字体</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="setting-option active" data-font="serif">宋体</button><button class="setting-option" data-font="sans">黑体</button>
+          <button class="setting-option" data-font="kai">楷体</button><button class="setting-option" data-font="yuan">圆体</button>
+        </div>
+      </div>
+      <div>
+        <div class="setting-label">行间距</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="setting-option" data-line="1.7">紧凑</button><button class="setting-option active" data-line="2.05">标准</button><button class="setting-option" data-line="2.4">宽松</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="import-panel" id="importPanel" aria-label="选择导入方式">
+      <div class="mb-3 flex items-center justify-between border-b border-line pb-3">
+        <div><div class="text-[14px] font-bold">导入内容</div><div class="mt-1 text-[11px] text-muted">选择书籍文件或章节文件夹</div></div>
+        <button class="icon-button -mr-2" id="closeImportBtn" title="关闭导入面板" aria-label="关闭导入面板"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <button class="import-choice" id="chooseBookBtn" type="button">
+        <span class="import-choice-icon"><i class="fa-solid fa-book-open"></i></span>
+        <span><span class="import-choice-title">导入书籍文件</span><span class="import-choice-note">TXT、Markdown、EPUB 或 ZIP</span></span>
+      </button>
+      <button class="import-choice" id="chooseFolderBtn" type="button">
+        <span class="import-choice-icon"><i class="fa-solid fa-folder-open"></i></span>
+        <span><span class="import-choice-title">导入章节文件夹</span><span class="import-choice-note">自动按文件名整理 TXT 与 Markdown</span></span>
+      </button>
+    </section>
+
+    <section class="editor-panel" id="editorPanel" aria-label="标点符号替换规则">
+      <div class="mb-5 flex items-center justify-between border-b border-line pb-4">
+        <div><div class="text-[14px] font-bold">标点符号替换规则</div><div class="mt-1 text-[11px] text-muted">设置全局替换时要处理的标点</div></div>
+        <button class="icon-button -mr-2" id="closeEditorBtn" title="关闭规则面板" aria-label="关闭规则面板"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="editor-note mb-4">这些规则会作用于当前书籍的全部章节，只修改阅读器本地副本，不会改写原始文件。</div>
+      <div class="setting-label">替换规则</div>
+      <div class="mb-5 grid grid-cols-2 gap-2">
+        <label class="edit-check"><input id="replaceQuotes" type="checkbox" checked><span>引号 “ ”</span></label>
+        <label class="edit-check"><input id="replaceCommas" type="checkbox" checked><span>逗号 ，</span></label>
+        <label class="edit-check"><input id="replaceColons" type="checkbox" checked><span>冒号 ：</span></label>
+        <label class="edit-check"><input id="replaceExclaims" type="checkbox" checked><span>感叹号 ！</span></label>
+        <label class="edit-check"><input id="replaceQuestions" type="checkbox" checked><span>问号 ？</span></label>
+      </div>
+      <button class="primary-button w-full" id="punctuationReplaceBtn" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i><span>全局替换标点</span></button>
+      <button class="secondary-button mt-2 w-full" id="punctuationUndoBtn" type="button" disabled><i class="fa-solid fa-rotate-left"></i><span>撤销上次替换</span></button>
+      <div class="editor-result mt-3" id="editorResult" aria-live="polite"></div>
+    </section>
+
+    <div class="toast" id="copyToast"><i class="fa-solid fa-circle-check"></i><span>已复制到剪贴板</span></div>
+    <div class="reader-dialog-backdrop" id="readerDialog" aria-hidden="true">
+      <section class="reader-dialog" role="dialog" aria-modal="true" aria-labelledby="readerDialogTitle" aria-describedby="readerDialogMessage">
+        <div class="reader-dialog-head">
+          <div class="reader-dialog-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+          <div class="min-w-0">
+            <div class="reader-dialog-title" id="readerDialogTitle">正文有未保存的修改</div>
+            <div class="reader-dialog-message" id="readerDialogMessage">退出编辑前要如何处理当前修改？</div>
+          </div>
+        </div>
+        <div class="reader-dialog-actions">
+          <button class="secondary-button" id="dialogKeepEditingBtn" type="button">继续编辑</button>
+          <button class="secondary-button dialog-discard" id="dialogDiscardBtn" type="button">放弃修改</button>
+          <button class="primary-button" id="dialogSaveBtn" type="button"><i class="fa-solid fa-floppy-disk"></i><span>保存并退出</span></button>
+        </div>
+      </section>
+    </div>
+    <div class="loading" id="loading"><div class="flex items-center gap-3 rounded-xl border border-line bg-[var(--surface)] px-5 py-4 shadow-popover"><span class="spinner"></span><span class="text-sm font-semibold">正在整理章节...</span></div></div>
+  </div>
+
+  <script>
+    const desktopApi = window.readerDesktop;
+    const isDesktop = Boolean(desktopApi?.isDesktop);
+    let desktopStorage = {};
+    let desktopStorageWrite = Promise.resolve();
+    let desktopStorageTimer = null;
+    let desktopReadyForBooks = false;
+    const pendingDesktopBookPaths = [];
+
+    const state = {
+      chapters: [], currentChapter: 0, fontSize: 18, lineHeight: 2.05,
+      theme: 'default', fontFamily: 'serif', bookTitle: '', demo: false, folderHandle: null,
+      punctuationHistory: null, punctuationOptions: null, chapterEdits: {}, directEditing: false, directEditOriginalText: '',
+      sourcePath: '', sourceType: ''
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const uploadArea = $('uploadArea');
+    const readerContainer = $('readerContainer');
+    const folderUploadBox = $('folderUploadBox');
+    const bookInput = $('bookInput');
+    const folderInput = $('folderInput');
+    const readerContent = $('readerContent');
+    const chapterList = $('chapterList');
+    const chapterCount = $('chapterCount');
+    const sidebar = $('sidebar');
+    const progressFill = $('progressFill');
+    const pageNav = $('pageNav');
+    const settingsPanel = $('settingsPanel');
+    const importPanel = $('importPanel');
+    const editorPanel = $('editorPanel');
+    const readerDialog = $('readerDialog');
+    const readerDialogTitle = $('readerDialogTitle');
+    const readerDialogMessage = $('readerDialogMessage');
+    const dialogKeepEditingBtn = $('dialogKeepEditingBtn');
+    const dialogDiscardBtn = $('dialogDiscardBtn');
+    const dialogSaveBtn = $('dialogSaveBtn');
+    const textFilePattern = /\.(txt|md|markdown)$/i;
+    const bookFilePattern = /\.(txt|md|markdown|epub|zip)$/i;
+    const folderDatabaseName = 'quiet-reader-reader';
+    const folderStoreName = 'sources';
+    let folderDatabasePromise;
+    let pendingReaderDialogResolve = null;
+
+    async function initializeDesktopStorage() {
+      if (!isDesktop) return;
+      try {
+        const saved = await desktopApi.getStorage();
+        desktopStorage = saved && typeof saved === 'object' ? saved : {};
+      } catch (error) {
+        console.error(error);
+        showToast('无法读取本地数据，将使用新的阅读记录');
+      }
+    }
+
+    function getStoredJson(key, fallback = null) {
+      if (isDesktop) return Object.prototype.hasOwnProperty.call(desktopStorage, key) ? desktopStorage[key] : fallback;
+      try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch (_) { return fallback; }
+    }
+
+    function persistDesktopStorage() {
+      if (!isDesktop) return Promise.resolve();
+      desktopStorageWrite = desktopStorageWrite.catch(() => undefined).then(() => desktopApi.saveStorage(desktopStorage));
+      return desktopStorageWrite.catch(error => {
+        console.error(error);
+        showToast('本地保存失败，请检查磁盘空间');
+      });
+    }
+
+    function scheduleDesktopStorageSave() {
+      if (!isDesktop) return;
+      clearTimeout(desktopStorageTimer);
+      desktopStorageTimer = setTimeout(() => { persistDesktopStorage(); }, 350);
+    }
+
+    function setStoredJson(key, value, { immediate = false } = {}) {
+      if (isDesktop) {
+        desktopStorage[key] = value;
+        return immediate ? persistDesktopStorage() : (scheduleDesktopStorageSave(), Promise.resolve());
+      }
+      try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* browser storage quota can be smaller than a complete library */ }
+      return Promise.resolve();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = String(text ?? '');
+      return div.innerHTML;
+    }
+
+    function formatNumber(num) { return Number(num || 0).toLocaleString('zh-CN'); }
+    function isSupportedFile(file) { return textFilePattern.test(file.name); }
+    function isBookFile(file) { return bookFilePattern.test(file.name); }
+    function isMarkdownFile(file) {
+      const name = typeof file === 'string' ? file : file?.name;
+      return /\.(md|markdown)$/i.test(String(name || ''));
+    }
+    function getFilenameWithoutExtension(filename) { return filename.replace(/\.(txt|md|markdown|epub|zip)$/i, ''); }
+
+    function openFolderDatabase() {
+      if (isDesktop) return Promise.resolve(null);
+      if (!('indexedDB' in window)) return Promise.resolve(null);
+      if (!folderDatabasePromise) {
+        folderDatabasePromise = new Promise((resolve) => {
+          try {
+            const request = indexedDB.open(folderDatabaseName, 1);
+            request.onupgradeneeded = () => request.result.createObjectStore(folderStoreName, { keyPath: 'id' });
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => resolve(null);
+          } catch (_) {
+            resolve(null);
+          }
+        });
+      }
+      return folderDatabasePromise;
+    }
+
+    async function saveFolderHandle(handle) {
+      if (isDesktop) return;
+      const database = await openFolderDatabase();
+      if (!database || !handle) return;
+      await new Promise((resolve) => {
+        const transaction = database.transaction(folderStoreName, 'readwrite');
+        transaction.objectStore(folderStoreName).put({ id: 'last-folder', handle, title: handle.name });
+        transaction.oncomplete = resolve;
+        transaction.onerror = resolve;
+        transaction.onabort = resolve;
+      });
+    }
+
+    async function getSavedFolder() {
+      if (isDesktop) return null;
+      const database = await openFolderDatabase();
+      if (!database) return null;
+      return new Promise((resolve) => {
+        const request = database.transaction(folderStoreName, 'readonly').objectStore(folderStoreName).get('last-folder');
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => resolve(null);
+      });
+    }
+
+    async function saveLibrarySnapshot() {
+      if (!state.chapters.length || state.demo) return;
+      const snapshot = {
+        id: 'last-library',
+        bookTitle: state.bookTitle,
+        currentChapter: state.currentChapter,
+        sourcePath: state.sourcePath,
+        sourceType: state.sourceType,
+        punctuationOptions: state.punctuationOptions ? { ...state.punctuationOptions } : null,
+        chapterEdits: { ...state.chapterEdits },
+        chapters: state.chapters.map(({ title, content, htmlContent, filename, sourceKey, isMarkdown, isEpubHtml, isCover }) => ({ title, content, htmlContent, filename, sourceKey, isMarkdown, isEpubHtml, isCover }))
+      };
+      if (isDesktop) {
+        await setStoredJson('reader_last_library', snapshot, { immediate: true });
+        return;
+      }
+      try { localStorage.setItem('reader_last_library', JSON.stringify(snapshot)); } catch (_) { /* IndexedDB remains the primary store for large libraries */ }
+      const database = await openFolderDatabase();
+      if (!database) return;
+      await new Promise((resolve) => {
+        const transaction = database.transaction(folderStoreName, 'readwrite');
+        transaction.objectStore(folderStoreName).put(snapshot);
+        transaction.oncomplete = resolve;
+        transaction.onerror = resolve;
+        transaction.onabort = resolve;
+      });
+    }
+
+    async function getSavedLibrary() {
+      if (isDesktop) return getStoredJson('reader_last_library');
+      const database = await openFolderDatabase();
+      if (database) {
+        const saved = await new Promise((resolve) => {
+          const request = database.transaction(folderStoreName, 'readonly').objectStore(folderStoreName).get('last-library');
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => resolve(null);
+        });
+        if (saved) return saved;
+      }
+      try { return JSON.parse(localStorage.getItem('reader_last_library') || 'null'); } catch (_) { return null; }
+    }
+
+    function setFolderSource(handle) {
+      state.folderHandle = handle || null;
+      const canUpdate = isDesktop ? state.sourceType === 'folder' && Boolean(state.sourcePath) : (Boolean(handle) || state.chapters.length > 0);
+      $('updateFolderBtn').classList.toggle('show', !state.demo && canUpdate);
+      const canUseSource = isDesktop && !state.demo && Boolean(state.sourcePath);
+      $('reloadSourceBtn').classList.toggle('show', canUseSource);
+      $('showSourceBtn').classList.toggle('show', canUseSource);
+    }
+
+    async function requestFolderPermission(handle, allowRequest) {
+      if (!handle || typeof handle.queryPermission !== 'function') return false;
+      try {
+        let permission = await handle.queryPermission({ mode: 'read' });
+        if (permission !== 'granted' && allowRequest && typeof handle.requestPermission === 'function') {
+          permission = await handle.requestPermission({ mode: 'read' });
+        }
+        return permission === 'granted';
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function collectDirectoryFiles(handle, prefix = '') {
+      const files = [];
+      for await (const entry of handle.values()) {
+        const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.kind === 'file') {
+          if (textFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath });
+        } else if (entry.kind === 'directory') {
+          files.push(...await collectDirectoryFiles(entry, relativePath));
+        }
+      }
+      return files;
+    }
+
+    async function chooseFolder() {
+      if (isDesktop) {
+        try {
+          const folderPath = await desktopApi.chooseFolder();
+          if (!folderPath) return;
+          await loadFromDesktopFolder(folderPath);
+        } catch (error) {
+          console.error(error);
+          showToast('打开章节文件夹失败，请重试');
+        }
+        return;
+      }
+      if (typeof window.showDirectoryPicker !== 'function') {
+        folderInput.click();
+        return;
+      }
+      try {
+        const handle = await window.showDirectoryPicker({ mode: 'read' });
+        if (!(await requestFolderPermission(handle, true))) { showToast('没有获得文件夹读取权限'); return; }
+        await saveFolderHandle(handle);
+        const loaded = await loadFromDirectory(handle);
+        if (loaded) showToast(`已导入 ${state.chapters.length} 个章节`);
+      } catch (error) {
+        if (error?.name !== 'AbortError') { console.error(error); showToast('打开文件夹失败，请重试'); }
+      }
+    }
+
+    function toggleImportPanel(force) {
+      const show = typeof force === 'boolean' ? force : !importPanel.classList.contains('show');
+      if (show) {
+        settingsPanel.classList.remove('show');
+        editorPanel.classList.remove('show');
+      }
+      importPanel.classList.toggle('show', show);
+      $('openImportBtn').setAttribute('aria-expanded', String(show));
+    }
+
+    async function updateFolder() {
+      if (isDesktop) {
+        if (!state.sourcePath || state.sourceType !== 'folder') { chooseFolder(); return; }
+        await loadFromDesktopFolder(state.sourcePath, { isUpdate: true });
+        return;
+      }
+      let handle = state.folderHandle;
+      if (!handle) {
+        const saved = await getSavedFolder();
+        handle = saved?.handle || null;
+      }
+      if (!handle) { chooseFolder(); return; }
+      if (!(await requestFolderPermission(handle, true))) {
+        showToast('请允许读取原来的文件夹');
+        return;
+      }
+      await saveFolderHandle(handle);
+      await loadFromDirectory(handle, { isUpdate: true });
+    }
+
+    async function loadFromDirectory(handle, options = {}) {
+      showLoading(true);
+      try {
+        const items = await collectDirectoryFiles(handle);
+        const loaded = await loadFromFileItems(items, handle.name, handle, options);
+        if (loaded && options.isUpdate) showToast(`已更新，共 ${state.chapters.length} 个章节`);
+        return loaded;
+      } catch (error) {
+        console.error(error); showToast('读取文件夹失败，请重试');
+        return false;
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function nativeFileFromResult(result) {
+      if (!result || !result.name || !result.bytes) throw new Error('无法读取所选文件');
+      return new File([result.bytes], result.name, { type: result.type || 'application/octet-stream' });
+    }
+
+    async function loadDesktopBookPath(filePath) {
+      if (!isDesktop || !filePath) return false;
+      try {
+        const result = await desktopApi.readBook(filePath);
+        await loadBookFile(nativeFileFromResult(result), {
+          sourcePath: result.path || filePath,
+          sourceType: 'book'
+        });
+        return true;
+      } catch (error) {
+        console.error(error);
+        showToast(error?.message || '读取书籍失败，请检查文件是否仍然存在');
+        return false;
+      }
+    }
+
+    async function loadFromDesktopFolder(folderPath, options = {}) {
+      if (!isDesktop || !folderPath) return false;
+      showLoading(true);
+      try {
+        const result = await desktopApi.readFolder(folderPath);
+        const items = (result.items || []).map(item => ({
+          file: nativeFileFromResult(item),
+          relativePath: item.relativePath || item.name
+        }));
+        setFolderSource(null);
+        const loaded = await loadFromFileItems(items, result.title || '我的小说', null, {
+          ...options,
+          sourcePath: result.path || folderPath,
+          sourceType: 'folder'
+        });
+        if (loaded && !options.isUpdate) showToast(`已导入 ${state.chapters.length} 个章节`);
+        return loaded;
+      } catch (error) {
+        console.error(error);
+        showToast(error?.message || '读取章节文件夹失败，请重试');
+        return false;
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    async function reloadSource() {
+      if (!isDesktop || !state.sourcePath) return;
+      if (state.sourceType === 'folder') {
+        await loadFromDesktopFolder(state.sourcePath, { isUpdate: true });
+      } else {
+        await loadDesktopBookPath(state.sourcePath);
+      }
+    }
+
+    async function showSourceInExplorer() {
+      if (!isDesktop || !state.sourcePath) return;
+      try {
+        await desktopApi.showSource(state.sourcePath, state.sourceType === 'folder');
+      } catch (error) {
+        console.error(error);
+        showToast('无法打开原始文件的位置');
+      }
+    }
+
+    function normalizeFileItems(files, pattern = textFilePattern) {
+      return Array.from(files)
+        .filter(file => pattern.test(file.name))
+        .map(file => ({ file, relativePath: file.webkitRelativePath || file.name }))
+        .sort((a, b) => naturalCompare(a.relativePath, b.relativePath));
+    }
+
+    function naturalCompare(a, b) {
+      return a.localeCompare(b, 'zh-CN', { numeric: true, sensitivity: 'base' });
+    }
+
+    function getWordCount(text, isMarkdown = false) {
+      const readable = isMarkdown ? markdownToPlainText(getChapterBodyContent({ content: text, isMarkdown: true })) : text;
+      return readable.trim().replace(/\s+/g, '').length;
+    }
+
+    function markdownToPlainText(text) {
+      return String(text || '')
+        .replace(/!?(\[[^\]]*\])\([^)]*\)/g, '$1')
+        .replace(/^[ \t]*#{1,6}\s+/gm, '')
+        .replace(/^[ \t]*[-+*]\s+/gm, '')
+        .replace(/^[ \t]*\d+[.)]\s+/gm, '')
+        .replace(/^[ \t]*>\s?/gm, '')
+        .replace(/[*_`~]/g, '')
+        .trim();
+    }
+
+    function isInsideUrl(text, index) {
+      let start = index - 1;
+      while (start >= 0 && !/\s/.test(text[start])) start -= 1;
+      const token = text.slice(start + 1, index + 1).replace(/^[([<{"“‘]+/, '');
+      return /^(?:(?:https?|ftp):\/{0,2}|www\.)/i.test(token);
+    }
+
+    function normalizePunctuation(text, options) {
+      const source = String(text || '');
+      let result = '';
+      let changes = 0;
+      let inCode = false;
+      let doubleQuoteOpen = true;
+      let singleQuoteOpen = true;
+
+      for (let index = 0; index < source.length; index += 1) {
+        const character = source[index];
+        if (character === '`') inCode = !inCode;
+        if (inCode || isInsideUrl(source, index)) { result += character; continue; }
+
+        if (character === '"' && options.quotes) {
+          result += doubleQuoteOpen ? '“' : '”';
+          doubleQuoteOpen = !doubleQuoteOpen;
+          changes += 1;
+        } else if (character === "'" && options.quotes) {
+          result += singleQuoteOpen ? '‘' : '’';
+          singleQuoteOpen = !singleQuoteOpen;
+          changes += 1;
+        } else if (character === ',' && options.commas) {
+          result += '，'; changes += 1;
+        } else if (character === ':' && options.colons && source.slice(index, index + 3) !== '://') {
+          result += '：'; changes += 1;
+        } else if (character === '!' && options.exclaims) {
+          result += '！'; changes += 1;
+        } else if (character === '?' && options.questions) {
+          result += '？'; changes += 1;
+        } else {
+          result += character;
+        }
+      }
+      return { text: result, changes };
+    }
+
+    function getPunctuationOptions() {
+      return {
+        quotes: $('replaceQuotes').checked,
+        commas: $('replaceCommas').checked,
+        colons: $('replaceColons').checked,
+        exclaims: $('replaceExclaims').checked,
+        questions: $('replaceQuestions').checked
+      };
+    }
+
+    function setPunctuationOptions(options) {
+      if (!options) return;
+      $('replaceQuotes').checked = Boolean(options.quotes);
+      $('replaceCommas').checked = Boolean(options.commas);
+      $('replaceColons').checked = Boolean(options.colons);
+      $('replaceExclaims').checked = Boolean(options.exclaims);
+      $('replaceQuestions').checked = Boolean(options.questions);
+    }
+
+    function normalizeChapters(chapters, options) {
+      if (!options || !Object.values(options).some(Boolean)) return chapters;
+      return chapters.map(chapter => {
+        const titleResult = normalizePunctuation(chapter.title, options);
+        const htmlResult = chapter.isEpubHtml ? normalizeHtmlPunctuation(chapter.htmlContent, options) : null;
+        const contentResult = chapter.isEpubHtml
+          ? { text: getEpubHtmlText(htmlResult.html), changes: 0 }
+          : normalizePunctuation(chapter.content, options);
+        return {
+          ...chapter,
+          title: titleResult.text,
+          content: contentResult.text,
+          htmlContent: htmlResult?.html ?? chapter.htmlContent
+        };
+      });
+    }
+
+    function cloneChapters(chapters) {
+      return chapters.map(chapter => ({ ...chapter }));
+    }
+
+    function getChapterSourceKey(chapter) {
+      return chapter.sourceKey || `${chapter.filename || ''}\u0000${chapter.title || ''}`;
+    }
+
+    function loadChapterEdits(bookTitle) {
+      if (!bookTitle) return {};
+      const saved = getStoredJson(`reader_edits_${bookTitle}`, {});
+      return saved && typeof saved === 'object' ? saved : {};
+    }
+
+    function saveChapterEdits() {
+      if (!state.bookTitle || state.demo) return;
+      setStoredJson(`reader_edits_${state.bookTitle}`, state.chapterEdits);
+    }
+
+    function applyChapterEdits(chapters) {
+      return chapters.map(chapter => {
+        const editedContent = state.chapterEdits[getChapterSourceKey(chapter)];
+        if (typeof editedContent === 'string') return { ...chapter, content: editedContent };
+        if (editedContent && typeof editedContent === 'object') {
+          return {
+            ...chapter,
+            content: typeof editedContent.content === 'string' ? editedContent.content : chapter.content,
+            htmlContent: typeof editedContent.htmlContent === 'string' ? sanitizeEpubHtml(editedContent.htmlContent) : chapter.htmlContent
+          };
+        }
+        return chapter;
+      });
+    }
+
+    function syncEditedChapterEdits() {
+      state.chapters.forEach(chapter => {
+        const key = getChapterSourceKey(chapter);
+        if (Object.prototype.hasOwnProperty.call(state.chapterEdits, key)) {
+          state.chapterEdits[key] = chapter.isEpubHtml
+            ? { content: chapter.content, htmlContent: chapter.htmlContent }
+            : chapter.content;
+        }
+      });
+    }
+
+    function getEditableChapterBody() {
+      return readerContent.querySelector('.chapter-body');
+    }
+
+    function updateEditorButton() {
+      const button = $('editorBtn');
+      const label = button.querySelector('span');
+      const icon = button.querySelector('i');
+      const editing = state.directEditing;
+      label.textContent = editing ? '退出编辑' : '编辑正文';
+      button.title = editing ? '退出编辑' : '直接编辑正文';
+      button.setAttribute('aria-label', editing ? '退出编辑' : '直接编辑正文');
+      icon.className = editing
+        ? 'fa-solid fa-arrow-right-from-bracket text-[12px]'
+        : 'fa-solid fa-pen-to-square text-[12px]';
+    }
+
+    function setDirectEditing(enabled) {
+      const body = getEditableChapterBody();
+      if (!body) return;
+      state.directEditing = enabled;
+      body.contentEditable = enabled ? 'true' : 'false';
+      body.classList.toggle('direct-editing', enabled);
+      updateEditorButton();
+      if (enabled) {
+        state.directEditOriginalText = getDirectEditSnapshot();
+        body.focus();
+        updateEditorResult('正文已进入编辑模式，修改完成后点击“退出编辑”。');
+        showToast('已进入正文编辑模式');
+      } else {
+        updateEditorResult('');
+      }
+    }
+
+    function getDirectEditContent() {
+      const body = getEditableChapterBody();
+      return body ? body.innerText.replace(/^\uFEFF/, '').trim() : '';
+    }
+
+    function getDirectEditSnapshot() {
+      const chapter = state.chapters[state.currentChapter];
+      const body = getEditableChapterBody();
+      if (!body) return '';
+      return chapter?.isEpubHtml ? body.innerHTML : getDirectEditContent();
+    }
+
+    function closeReaderDialog(result = 'keep') {
+      if (!pendingReaderDialogResolve) return;
+      const resolve = pendingReaderDialogResolve;
+      pendingReaderDialogResolve = null;
+      readerDialog.classList.remove('show');
+      readerDialog.setAttribute('aria-hidden', 'true');
+      resolve(result);
+    }
+
+    function askUnsavedAction(context = 'exit') {
+      const isExit = context === 'exit';
+      readerDialogTitle.textContent = '正文有未保存的修改';
+      readerDialogMessage.textContent = isExit
+        ? '退出编辑前要如何处理当前修改？'
+        : '切换内容前要如何处理当前修改？';
+      dialogSaveBtn.querySelector('span').textContent = isExit ? '保存并退出' : '保存并继续';
+      dialogDiscardBtn.textContent = isExit ? '放弃修改' : '放弃并继续';
+      readerDialog.classList.add('show');
+      readerDialog.setAttribute('aria-hidden', 'false');
+      dialogSaveBtn.focus();
+      return new Promise(resolve => { pendingReaderDialogResolve = resolve; });
+    }
+
+    async function saveDirectEdit(showMessage = true) {
+      const chapter = state.chapters[state.currentChapter];
+      if (!chapter) return;
+      const content = getDirectEditContent();
+      chapter.content = content;
+      if (chapter.isEpubHtml) {
+        chapter.htmlContent = sanitizeEpubHtml(getEditableChapterBody()?.innerHTML || '');
+        state.chapterEdits[getChapterSourceKey(chapter)] = { content, htmlContent: chapter.htmlContent };
+      } else {
+        state.chapterEdits[getChapterSourceKey(chapter)] = content;
+      }
+      state.directEditOriginalText = getDirectEditSnapshot();
+      saveChapterEdits();
+      await saveLibrarySnapshot();
+      if (showMessage) showToast('正文修改已保存');
+    }
+
+    async function exitDirectEditing() {
+      if (!state.directEditing) return true;
+      const currentSnapshot = getDirectEditSnapshot();
+      const hasChanges = currentSnapshot !== state.directEditOriginalText;
+      let action = 'discard';
+      if (hasChanges) {
+        action = await askUnsavedAction('exit');
+        if (action === 'keep') return false;
+        if (action === 'save') await saveDirectEdit(false);
+      }
+      const currentScroll = readerContainer.scrollTop;
+      setDirectEditing(false);
+      renderChapter(state.currentChapter);
+      requestAnimationFrame(() => { readerContainer.scrollTop = currentScroll; });
+      showToast(hasChanges && action === 'save' ? '正文修改已保存' : (hasChanges ? '已退出编辑，未保存修改已丢弃' : '已退出正文编辑模式'));
+      return true;
+    }
+
+    function updateEditorResult(message) {
+      $('editorResult').textContent = message;
+    }
+
+    async function replacePunctuation() {
+      if (!state.chapters.length || state.demo) { updateEditorResult('请先导入真实书籍，再进行文本编辑。'); return; }
+      const options = getPunctuationOptions();
+      if (!Object.values(options).some(Boolean)) { updateEditorResult('请至少选择一种标点。'); return; }
+      if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText) await saveDirectEdit(false);
+
+      const previousScroll = readerContainer.scrollTop;
+      const snapshot = {
+        chapters: cloneChapters(state.chapters),
+        options: state.punctuationOptions ? { ...state.punctuationOptions } : null
+      };
+      let totalChanges = 0;
+      state.chapters = state.chapters.map(chapter => {
+        const titleResult = normalizePunctuation(chapter.title, options);
+        const htmlResult = chapter.isEpubHtml ? normalizeHtmlPunctuation(chapter.htmlContent, options) : null;
+        const contentResult = chapter.isEpubHtml
+          ? { text: getEpubHtmlText(htmlResult.html), changes: 0 }
+          : normalizePunctuation(chapter.content, options);
+        totalChanges += titleResult.changes + contentResult.changes + (htmlResult?.changes || 0);
+        return { ...chapter, title: titleResult.text, content: contentResult.text, htmlContent: htmlResult?.html ?? chapter.htmlContent };
+      });
+
+      state.punctuationHistory = snapshot;
+      state.punctuationOptions = options;
+      syncEditedChapterEdits();
+      saveChapterEdits();
+      $('punctuationUndoBtn').disabled = false;
+      renderChapter(state.currentChapter);
+      if (state.directEditing) state.directEditOriginalText = getDirectEditSnapshot();
+      requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
+      await saveLibrarySnapshot();
+      updateEditorResult(totalChanges ? `已替换 ${formatNumber(totalChanges)} 处标点。` : '没有发现需要替换的英文标点。');
+      showToast(totalChanges ? `已规范 ${formatNumber(totalChanges)} 处标点` : '没有需要替换的标点');
+    }
+
+    async function undoPunctuation() {
+      if (!state.punctuationHistory) return;
+      const previousScroll = readerContainer.scrollTop;
+      const snapshot = state.punctuationHistory;
+      state.chapters = Array.isArray(snapshot) ? snapshot : snapshot.chapters;
+      state.punctuationOptions = Array.isArray(snapshot) ? null : snapshot.options;
+      setPunctuationOptions(state.punctuationOptions);
+      syncEditedChapterEdits();
+      saveChapterEdits();
+      state.punctuationHistory = null;
+      $('punctuationUndoBtn').disabled = true;
+      renderChapter(state.currentChapter);
+      if (state.directEditing) state.directEditOriginalText = getDirectEditSnapshot();
+      requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
+      await saveLibrarySnapshot();
+      updateEditorResult('已撤销上次标点替换。');
+      showToast('已撤销标点替换');
+    }
+
+    function readBinaryFile(file) {
+      if (file && typeof file.arrayBuffer === 'function') return file.arrayBuffer();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = event => resolve(event.target.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function decodeTextBuffer(buffer) {
+      const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+      let utf8 = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      if ((utf8.match(/�/g) || []).length > Math.max(2, utf8.length * 0.01)) {
+        try { utf8 = new TextDecoder('gb18030', { fatal: false }).decode(bytes); } catch (_) { /* fallback kept */ }
+      }
+      return utf8.replace(/^\uFEFF/, '');
+    }
+
+    async function readFile(file) {
+      return decodeTextBuffer(await readBinaryFile(file));
+    }
+
+    function parseInternalChapters(content, filename) {
+      const pattern = /^\s*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇].*|Chapter\s+\d+.*))\s*$/gim;
+      const matches = [];
+      let match;
+      while ((match = pattern.exec(content)) !== null) matches.push({ index: match.index, title: match[1].trim() });
+      if (matches.length <= 1) return [];
+      return matches.map((item, index) => ({
+        title: item.title, content: content.slice(item.index + matchLineLength(content, item.index), index < matches.length - 1 ? matches[index + 1].index : content.length).trim(), filename, isMarkdown: false
+      }));
+    }
+
+    function matchLineLength(text, index) {
+      const end = text.indexOf('\n', index);
+      return end === -1 ? text.length - index : end - index + 1;
+    }
+
+    function parseMarkdownChapters(content, filename) {
+      const matches = [];
+      const pattern = /^#\s+(.+?)\s*#*\s*$/gm;
+      let match;
+      while ((match = pattern.exec(content)) !== null) matches.push({ index: match.index, title: markdownToPlainText(match[1]) });
+      if (matches.length <= 1) return [];
+      return matches.map((item, index) => {
+        const start = matchLineLength(content, item.index) + item.index;
+        return { title: item.title, content: content.slice(start, index < matches.length - 1 ? matches[index + 1].index : content.length).trim(), filename, isMarkdown: true };
+      });
+    }
+
+    function extractLeadingPlainChapter(content) {
+      const source = String(content || '').replace(/^\uFEFF/, '');
+      const match = source.match(/^[ \t\r\n]*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇][^\r\n]*|Chapter\s+\d+[^\r\n]*))[ \t]*(?:\r?\n|$)/i);
+      if (!match) return null;
+      return { title: match[1].trim(), content: source.slice(match[0].length).trimStart() };
+    }
+
+    function extractLeadingMarkdownChapter(content) {
+      const source = String(content || '').replace(/^\uFEFF/, '');
+      const match = source.match(/^[ \t\r\n]*#\s+(.+?)\s*#?[ \t]*(?:\r?\n|$)/);
+      if (!match) return null;
+      return { title: markdownToPlainText(match[1]), content: source.slice(match[0].length).trimStart() };
+    }
+
+    function inferChapterTypes(chapters) {
+      return (chapters || []).map(chapter => ({
+        ...chapter,
+        isMarkdown: Boolean(chapter.isMarkdown || isMarkdownFile(chapter.filename))
+      }));
+    }
+
+    function getMarkdownTitle(content) {
+      const match = content.match(/^\s*#\s+(.+?)\s*#*\s*$/m);
+      return match ? markdownToPlainText(match[1]) : '';
+    }
+
+    function chaptersFromTextContent(content, filename, relativePath = filename) {
+      const displayFilename = String(filename || relativePath || '本地文件').split('/').pop();
+      const isMarkdown = isMarkdownFile(displayFilename);
+      const internal = isMarkdown ? parseMarkdownChapters(content, displayFilename) : parseInternalChapters(content, displayFilename);
+      if ((!isMarkdown && internal.length > 0) || (isMarkdown && internal.length > 1)) {
+        return internal.map((chapter, index) => ({
+          ...chapter,
+          filename: relativePath,
+          sourceKey: `${relativePath}\u0000${chapter.title}`
+        }));
+      }
+      const leadingChapter = isMarkdown ? extractLeadingMarkdownChapter(content) : extractLeadingPlainChapter(content);
+      const title = leadingChapter?.title || (isMarkdown ? (getMarkdownTitle(content) || getFilenameWithoutExtension(displayFilename)) : getFilenameWithoutExtension(displayFilename));
+      return [{
+        title,
+        content: (leadingChapter?.content ?? String(content || '')).trim(),
+        filename: relativePath,
+        sourceKey: `${relativePath}\u0000${title}`,
+        isMarkdown
+      }];
+    }
+
+    function normalizeZipPath(basePath, target) {
+      let value = String(target || '').split(/[?#]/)[0].replace(/\\/g, '/');
+      try { value = decodeURIComponent(value); } catch (_) { /* keep the original path */ }
+      const combined = `${basePath ? `${basePath}/` : ''}${value}`.replace(/^\/+/, '');
+      const parts = [];
+      combined.split('/').forEach(part => {
+        if (!part || part === '.') return;
+        if (part === '..') { parts.pop(); return; }
+        parts.push(part);
+      });
+      return parts.join('/');
+    }
+
+    function getZipEntry(zip, path) {
+      const normalized = normalizeZipPath('', path);
+      const exact = zip.file(normalized);
+      if (exact) return exact;
+      const match = Object.values(zip.files).find(entry => !entry.dir && normalizeZipPath('', entry.name).toLowerCase() === normalized.toLowerCase());
+      return match || null;
+    }
+
+    function getXmlTextByLocalName(xml, localName) {
+      const node = Array.from(xml.getElementsByTagName('*')).find(item => item.localName === localName || item.nodeName === localName);
+      return node ? node.textContent.trim() : '';
+    }
+
+    function getEpubHtmlText(html) {
+      const documentNode = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      return (documentNode.body?.innerText || documentNode.body?.textContent || '').replace(/^\uFEFF/, '').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function sanitizeEpubHtml(html) {
+      const documentNode = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      const body = documentNode.body || documentNode.documentElement;
+      body.querySelectorAll('script,style,link,meta,base,title,noscript,template,svg,math,iframe,frame,frameset,object,embed,applet,form,input,button,textarea,select,option,audio,video,source,track,canvas').forEach(node => node.remove());
+      body.querySelectorAll('*').forEach(node => {
+        Array.from(node.attributes).forEach(attribute => {
+          const name = attribute.name.toLowerCase();
+          const value = attribute.value.trim();
+          const tagName = node.tagName.toLowerCase();
+          const allowed = (
+            name === 'class' || name === 'title' || name === 'role' || name.startsWith('aria-') ||
+            (tagName === 'img' && ['src', 'alt', 'width', 'height'].includes(name)) ||
+            (['td', 'th'].includes(tagName) && ['colspan', 'rowspan'].includes(name))
+          );
+          if (!allowed || name.startsWith('on') || name === 'style') node.removeAttribute(attribute.name);
+          if (name === 'src' && tagName === 'img' && !/^data:image\//i.test(value)) node.removeAttribute(attribute.name);
+        });
+        if (node.tagName.toLowerCase() === 'img' && !node.getAttribute('src')) node.remove();
+      });
+      return body.innerHTML.trim();
+    }
+
+    function normalizeHtmlPunctuation(html, options) {
+      const documentNode = new DOMParser().parseFromString(sanitizeEpubHtml(html), 'text/html');
+      const walker = documentNode.createTreeWalker(documentNode.body, NodeFilter.SHOW_TEXT);
+      let changes = 0;
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement?.closest('pre,code')) continue;
+        const result = normalizePunctuation(node.nodeValue, options);
+        node.nodeValue = result.text;
+        changes += result.changes;
+      }
+      return { html: documentNode.body.innerHTML, changes };
+    }
+
+    function getEpubAssetMimeType(path) {
+      const extension = String(path || '').split('.').pop().toLowerCase();
+      return {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+        avif: 'image/avif', bmp: 'image/bmp', svg: 'image/svg+xml', svgz: 'image/svg+xml', ico: 'image/x-icon'
+      }[extension] || 'application/octet-stream';
+    }
+
+    async function getEpubAssetDataUrl(zip, path, mediaType = '') {
+      const entry = getZipEntry(zip, path);
+      if (!entry) return '';
+      const mimeType = mediaType || getEpubAssetMimeType(path);
+      if (!/^image\//i.test(mimeType)) return '';
+      return `data:${mimeType};base64,${await entry.async('base64')}`;
+    }
+
+    async function embedEpubImages(body, htmlPath, zip, manifestByPath) {
+      const basePath = htmlPath.includes('/') ? htmlPath.slice(0, htmlPath.lastIndexOf('/')) : '';
+      const images = Array.from(body.querySelectorAll('img[src]'));
+      for (const image of images) {
+        const source = image.getAttribute('src') || '';
+        if (/^data:image\//i.test(source)) continue;
+        const assetPath = normalizeZipPath(basePath, source);
+        const asset = manifestByPath.get(assetPath.toLowerCase());
+        try {
+          const dataUrl = await getEpubAssetDataUrl(zip, assetPath, asset?.mediaType || '');
+          if (dataUrl) image.setAttribute('src', dataUrl);
+          else image.remove();
+        } catch (_) {
+          image.remove();
+        }
+      }
+    }
+
+    async function chapterFromEpubHtmlDocument(html, htmlPath, sourceName, zip, manifestByPath, options = {}) {
+      const documentNode = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      const body = documentNode.body || documentNode.documentElement;
+      const heading = body.querySelector('h1,h2,h3,h4');
+      const headingTitle = heading?.textContent.replace(/\s+/g, ' ').trim() || '';
+      const documentTitle = documentNode.querySelector('title')?.textContent.replace(/\s+/g, ' ').trim() || '';
+      const title = headingTitle || documentTitle || getFilenameWithoutExtension(htmlPath.split('/').pop() || htmlPath);
+      await embedEpubImages(body, htmlPath, zip, manifestByPath);
+      if (!options.isCover && heading && headingTitle === title) heading.remove();
+      const htmlContent = sanitizeEpubHtml(body.innerHTML);
+      return {
+        title,
+        content: getEpubHtmlText(htmlContent),
+        htmlContent,
+        filename: htmlPath.split('/').pop() || htmlPath,
+        sourceKey: `${sourceName}\u0000${htmlPath}`,
+        isMarkdown: false,
+        isEpubHtml: true,
+        isCover: Boolean(options.isCover)
+      };
+    }
+
+    async function parseEpubBuffer(buffer, sourceName = 'book.epub') {
+      if (typeof JSZip === 'undefined') throw new Error('EPUB/ZIP解析库未加载');
+      const zip = await JSZip.loadAsync(buffer);
+      const containerEntry = getZipEntry(zip, 'META-INF/container.xml');
+      if (!containerEntry) throw new Error('EPUB缺少目录文件');
+      const containerXml = new DOMParser().parseFromString(await containerEntry.async('string'), 'application/xml');
+      const rootfile = Array.from(containerXml.getElementsByTagName('*')).find(node => node.localName === 'rootfile' && node.getAttribute('full-path'));
+      const opfPath = normalizeZipPath('', rootfile?.getAttribute('full-path') || '');
+      const opfEntry = opfPath ? getZipEntry(zip, opfPath) : null;
+      if (!opfEntry) throw new Error('EPUB缺少书籍目录');
+
+      const opfXml = new DOMParser().parseFromString(await opfEntry.async('string'), 'application/xml');
+      const opfDir = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/')) : '';
+      const manifest = new Map();
+      Array.from(opfXml.getElementsByTagName('*')).filter(node => node.localName === 'item').forEach(item => {
+        const id = item.getAttribute('id');
+        const href = item.getAttribute('href');
+        if (id && href) manifest.set(id, {
+          id,
+          href: normalizeZipPath(opfDir, href),
+          mediaType: item.getAttribute('media-type') || '',
+          properties: item.getAttribute('properties') || ''
+        });
+      });
+      const manifestByPath = new Map(Array.from(manifest.values()).map(item => [item.href.toLowerCase(), item]));
+      const coverMeta = Array.from(opfXml.getElementsByTagName('*')).find(node => node.localName === 'meta' && String(node.getAttribute('name') || '').toLowerCase() === 'cover');
+      const coverImageItem = manifest.get(coverMeta?.getAttribute('content') || '') || Array.from(manifest.values()).find(item => /\bcover-image\b/i.test(item.properties));
+      const guideCoverPaths = Array.from(opfXml.getElementsByTagName('*'))
+        .filter(node => node.localName === 'reference' && /cover|封面/i.test(`${node.getAttribute('type') || ''} ${node.getAttribute('title') || ''}`))
+        .map(node => normalizeZipPath(opfDir, node.getAttribute('href') || ''))
+        .filter(Boolean);
+
+      const spine = Array.from(opfXml.getElementsByTagName('*')).find(node => node.localName === 'spine');
+      const itemRefs = spine
+        ? Array.from(spine.getElementsByTagName('*')).filter(node => node.localName === 'itemref')
+        : [];
+      const orderedIds = itemRefs.map(item => item.getAttribute('idref')).filter(Boolean);
+      let orderedItems = (orderedIds.length ? orderedIds.map(id => manifest.get(id)).filter(Boolean) : Array.from(manifest.values()).sort((a, b) => naturalCompare(a.href, b.href)))
+        .filter(item => /(?:xhtml|html|htm)$/i.test(item.href) || /html/i.test(item.mediaType))
+        .filter(item => !/\bnav\b/i.test(item.properties));
+      const guideCoverItems = guideCoverPaths.map(path => manifestByPath.get(path.toLowerCase())).filter(item => item && /(?:xhtml|html|htm)$/i.test(item.href));
+      guideCoverItems.reverse().forEach(item => {
+        if (!orderedItems.some(existing => existing.href === item.href)) orderedItems.unshift(item);
+      });
+
+      const chapters = [];
+      for (let index = 0; index < orderedItems.length; index += 1) {
+        const item = orderedItems[index];
+        const entry = getZipEntry(zip, item.href);
+        if (!entry) continue;
+        const isCover = guideCoverPaths.some(path => path.toLowerCase() === item.href.toLowerCase()) || /(?:^|[/_.-])(cover|封面)(?:$|[/_.-])/i.test(item.href);
+        chapters.push(await chapterFromEpubHtmlDocument(await entry.async('string'), item.href, sourceName, zip, manifestByPath, { isCover }));
+      }
+      if (!chapters.some(chapter => chapter.isCover) && coverImageItem) {
+        const imageDataUrl = await getEpubAssetDataUrl(zip, coverImageItem.href, coverImageItem.mediaType);
+        if (imageDataUrl) {
+          const htmlContent = `<img src="${imageDataUrl}" alt="封面">`;
+          chapters.unshift({
+            title: '封面', content: '', htmlContent, filename: coverImageItem.href.split('/').pop() || 'cover',
+            sourceKey: `${sourceName}\u0000${coverImageItem.href}\u0000cover`, isMarkdown: false, isEpubHtml: true, isCover: true
+          });
+        }
+      }
+      if (!chapters.length) throw new Error('EPUB中没有可阅读的章节');
+      const fallbackTitle = getFilenameWithoutExtension(String(sourceName).split('/').pop() || sourceName);
+      return { title: getXmlTextByLocalName(opfXml, 'title') || fallbackTitle, chapters };
+    }
+
+    async function parseEpubFile(file) {
+      return parseEpubBuffer(await readBinaryFile(file), file.name);
+    }
+
+    async function parseZipFile(file) {
+      if (typeof JSZip === 'undefined') throw new Error('EPUB/ZIP解析库未加载');
+      const zip = await JSZip.loadAsync(await readBinaryFile(file));
+      const entries = Object.values(zip.files).filter(entry => !entry.dir);
+      const nestedEpub = entries.find(entry => /\.epub$/i.test(entry.name));
+      if (nestedEpub) return parseEpubBuffer(await nestedEpub.async('arraybuffer'), nestedEpub.name);
+
+      const textEntries = entries.filter(entry => textFilePattern.test(entry.name)).sort((a, b) => naturalCompare(a.name, b.name));
+      const chapters = [];
+      for (const entry of textEntries) {
+        const content = decodeTextBuffer(await entry.async('uint8array'));
+        chapters.push(...chaptersFromTextContent(content, entry.name, entry.name));
+      }
+      if (!chapters.length) throw new Error('压缩包中没有找到 TXT 或 Markdown 文件');
+      return { title: getFilenameWithoutExtension(file.name), chapters };
+    }
+
+    async function parseBookFile(file, relativePath = file.name) {
+      const extension = (file.name.match(/\.([^.]+)$/)?.[1] || '').toLowerCase();
+      if (extension === 'epub') {
+        const parsed = await parseEpubFile(file);
+        return {
+          ...parsed,
+          chapters: parsed.chapters.map((chapter, index) => ({ ...chapter, filename: relativePath, sourceKey: `${relativePath}\u0000${chapter.title}\u0000${index}` }))
+        };
+      }
+      if (extension === 'zip') {
+        const parsed = await parseZipFile(file);
+        return {
+          ...parsed,
+          chapters: parsed.chapters.map((chapter, index) => ({ ...chapter, sourceKey: `${relativePath}\u0000${chapter.sourceKey || chapter.title}\u0000${index}` }))
+        };
+      }
+      return { title: getFilenameWithoutExtension(file.name), chapters: chaptersFromTextContent(await readFile(file), file.name, relativePath) };
+    }
+
+    function getChapterBodyContent(chapter) {
+      let content = (chapter.content || '').replace(/^\uFEFF/, '');
+      if (chapter.isMarkdown) return content.replace(/^(?:[ \t]*\r?\n)*[ \t]*#\s+.*?[ \t]*#?[ \t]*(?:\r?\n|$)/, '').trimStart();
+      return content.replace(/^\s*(?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇].*)\s*(?:\r?\n|$)/i, '').trimStart();
+    }
+
+    function renderMarkdownInline(text) {
+      const protectedTokens = [];
+      const protect = (html) => { const token = `@@TOKEN_${protectedTokens.length}@@`; protectedTokens.push(html); return token; };
+      let html = escapeHtml(text);
+      html = html.replace(/`([^`]+)`/g, (_, code) => protect(`<code>${code}</code>`));
+      html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      html = html.replace(/(\*\*|__)(.+?)\1/g, '<strong>$2</strong>');
+      html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+      html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
+      html = html.replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>');
+      return html.replace(/@@TOKEN_(\d+)@@/g, (_, index) => protectedTokens[Number(index)]);
+    }
+
+    function renderMarkdown(content) {
+      const lines = content.replace(/\r/g, '').split('\n');
+      const output = []; let paragraph = []; let quote = []; let list = []; let listType = ''; let code = []; let inCode = false;
+      const flushParagraph = () => { if (paragraph.length) { output.push(`<p>${renderMarkdownInline(paragraph.join(' ').trim())}</p>`); paragraph = []; } };
+      const flushQuote = () => { if (quote.length) { output.push(`<blockquote>${quote.map(line => `<p>${renderMarkdownInline(line)}</p>`).join('')}</blockquote>`); quote = []; } };
+      const flushList = () => { if (list.length) { output.push(`<${listType}>${list.map(item => `<li>${renderMarkdownInline(item)}</li>`).join('')}</${listType}>`); list = []; listType = ''; } };
+      const flushCode = () => { if (code.length || inCode) { output.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`); code = []; inCode = false; } };
+      lines.forEach((line, index) => {
+        if (inCode) { if (/^\s*```/.test(line)) flushCode(); else code.push(line); return; }
+        if (/^\s*```/.test(line)) { flushParagraph(); flushQuote(); flushList(); inCode = true; return; }
+        const heading = line.match(/^\s*(#{1,4})\s+(.+?)\s*#*\s*$/);
+        if (heading) { flushParagraph(); flushQuote(); flushList(); const level = Math.max(2, heading[1].length); output.push(`<h${level}>${renderMarkdownInline(heading[2])}</h${level}>`); return; }
+        if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) { flushParagraph(); flushQuote(); flushList(); output.push('<hr>'); return; }
+        const quoteLine = line.match(/^\s*>\s?(.*)$/); if (quoteLine) { flushParagraph(); flushList(); quote.push(quoteLine[1]); return; }
+        const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/); const unordered = line.match(/^\s*[-+*]\s+(.+)$/);
+        if (ordered || unordered) { flushParagraph(); flushQuote(); const nextType = ordered ? 'ol' : 'ul'; if (listType && listType !== nextType) flushList(); listType = nextType; list.push((ordered || unordered)[1]); return; }
+        if (!line.trim()) { flushParagraph(); flushQuote(); flushList(); return; }
+        flushQuote(); flushList(); paragraph.push(line.trim());
+        if (index === lines.length - 1) flushParagraph();
+      });
+      flushParagraph(); flushQuote(); flushList(); flushCode(); return output.join('');
+    }
+
+    function renderChapterList() {
+      chapterList.innerHTML = '';
+      chapterCount.textContent = `${state.chapters.length} 章`;
+      $('sidebarBookName').textContent = state.bookTitle || '未命名书籍';
+      $('emptyChapterList').classList.toggle('hidden', state.chapters.length > 0);
+      state.chapters.forEach((chapter, index) => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = `chapter-item ${index === state.currentChapter ? 'active' : ''}`;
+        button.innerHTML = `<span class="chapter-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span>`;
+        button.addEventListener('click', () => selectChapter(index));
+        li.appendChild(button); chapterList.appendChild(li);
+      });
+    }
+
+    function renderChapter(index) {
+      const chapter = state.chapters[index]; if (!chapter) return;
+      state.currentChapter = index;
+      const content = getChapterBodyContent(chapter);
+      const bodyHtml = chapter.isEpubHtml
+        ? (chapter.htmlContent || '')
+        : (chapter.isMarkdown ? renderMarkdown(content) : content.split(/\n+/).filter(line => line.trim()).map(line => `<p>${escapeHtml(line.trim())}</p>`).join(''));
+      const headerHtml = chapter.isCover ? '' : `
+        <header class="mb-11 text-center">
+          <div class="mb-4 text-[10px] font-bold uppercase tracking-[.17em] text-[var(--accent)]">Chapter ${String(index + 1).padStart(2, '0')}</div>
+          <h1 class="chapter-title">${escapeHtml(chapter.title)}</h1>
+          <div class="chapter-divider"></div>
+          <div class="chapter-meta"><span>第 ${index + 1} / ${state.chapters.length} 章</span><span class="meta-dot"></span><span class="meta-accent">${formatNumber(getWordCount(content, chapter.isMarkdown))} 字</span><span class="meta-dot"></span><span>${escapeHtml(chapter.filename || '本地文件')}</span></div>
+        </header>`;
+      const endHtml = chapter.isCover ? '' : '<div class="chapter-end"><i class="fa-solid fa-feather-pointed mr-2 text-[var(--accent)]"></i>本章完</div>';
+      readerContent.innerHTML = `
+        ${headerHtml}
+        <div class="chapter-body${chapter.isEpubHtml ? ' epub-html' : ''}${chapter.isCover ? ' epub-cover' : ''}">${bodyHtml || '<p>本章暂无正文。</p>'}</div>
+        ${endHtml}`;
+      applyReadingSettings();
+      renderChapterList();
+      if (state.directEditing) {
+        const body = getEditableChapterBody();
+        if (body) {
+          body.contentEditable = 'true';
+          body.classList.add('direct-editing');
+        }
+      }
+      $('prevPageBtn').disabled = index === 0;
+      $('nextPageBtn').disabled = index === state.chapters.length - 1;
+      readerContainer.scrollTop = 0;
+      progressFill.style.width = '0%';
+      saveProgress();
+    }
+
+    async function selectChapter(index) {
+      if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText) {
+        const action = await askUnsavedAction('switch');
+        if (action === 'keep') return;
+        if (action === 'save') await saveDirectEdit(false);
+        setDirectEditing(false);
+      } else if (state.directEditing) {
+        setDirectEditing(false);
+      }
+      renderChapter(index);
+      if (window.innerWidth < 841) toggleSidebar(false);
+    }
+    function showLoading(show) { $('loading').classList.toggle('show', show); }
+
+    async function loadParsedChapters(chapters, bookTitle, folderHandle = null, options = {}) {
+      if (!chapters.length) { showToast('没有解析出可阅读的章节'); return false; }
+      if (state.directEditing && !(await exitDirectEditing())) return false;
+      syncEditedChapterEdits();
+      const previousEdits = { ...state.chapterEdits };
+      const previousChapter = state.chapters[state.currentChapter];
+      const previousKey = previousChapter ? (previousChapter.sourceKey || `${previousChapter.filename}\u0000${previousChapter.title}`) : '';
+      const previousScroll = readerContainer.scrollTop;
+      const shouldReapplyPunctuation = (options.isUpdate || options.restoring) ? state.punctuationOptions : null;
+      if (!options.isUpdate && !options.restoring) state.punctuationOptions = null;
+      state.demo = false;
+      state.bookTitle = bookTitle || '我的小说';
+      state.folderHandle = folderHandle || state.folderHandle || null;
+      state.sourcePath = options.sourcePath || '';
+      state.sourceType = options.sourceType || '';
+      state.chapterEdits = { ...loadChapterEdits(state.bookTitle), ...((options.isUpdate || options.restoring) ? previousEdits : {}) };
+      state.punctuationHistory = null;
+      $('punctuationUndoBtn').disabled = true;
+      updateEditorResult('');
+      $('bookTitle').textContent = state.bookTitle;
+      document.title = `${state.bookTitle} - 阅读器`;
+
+      state.chapters = inferChapterTypes(chapters);
+      if (shouldReapplyPunctuation) {
+        state.chapters = normalizeChapters(state.chapters, shouldReapplyPunctuation);
+        setPunctuationOptions(shouldReapplyPunctuation);
+      }
+      state.chapters = applyChapterEdits(state.chapters);
+      setFolderSource(folderHandle || state.folderHandle);
+      openReader();
+
+      let nextChapter = 0;
+      if (options.isUpdate && previousKey) {
+        const matchedIndex = state.chapters.findIndex(chapter => chapter.sourceKey === previousKey);
+        if (matchedIndex >= 0) nextChapter = matchedIndex;
+      }
+      state.currentChapter = nextChapter;
+      renderChapter(nextChapter);
+      if (options.isUpdate && previousKey) requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
+      else restoreProgress();
+      if (window.innerWidth >= 841 && state.chapters.length >= 3) toggleSidebar(true);
+      await saveLibrarySnapshot();
+      return true;
+    }
+
+    async function loadFromFileItems(items, bookTitle, folderHandle = null, options = {}) {
+      const supported = items
+        .filter(item => item?.file && isSupportedFile(item.file))
+        .sort((a, b) => naturalCompare(a.relativePath || a.file.name, b.relativePath || b.file.name));
+      if (!supported.length) { showToast('没有找到 TXT 或 Markdown 文件'); return false; }
+
+      const chapters = [];
+      for (const item of supported) {
+        const relativePath = item.relativePath || item.file.webkitRelativePath || item.file.name;
+        chapters.push(...chaptersFromTextContent(await readFile(item.file), item.file.name, relativePath));
+      }
+      return loadParsedChapters(chapters, bookTitle, folderHandle, options);
+    }
+
+    async function loadFromFiles(files) {
+      const items = normalizeFileItems(files);
+      if (!items.length) { showToast('没有找到 TXT 或 Markdown 文件'); return; }
+      showLoading(true);
+      try {
+        const firstPath = items[0].relativePath;
+        const pathParts = firstPath.split('/');
+        const bookTitle = pathParts.length > 1 ? pathParts[0] : '我的小说';
+        setFolderSource(null);
+        await loadFromFileItems(items, bookTitle, null);
+        showToast(`已导入 ${state.chapters.length} 个章节`);
+      } catch (error) {
+        console.error(error); showToast('读取文件失败，请重试');
+      } finally { showLoading(false); }
+    }
+
+    async function loadBookFile(file, options = {}) {
+      showLoading(true);
+      try {
+        const parsed = await parseBookFile(file);
+        setFolderSource(null);
+        const loaded = await loadParsedChapters(parsed.chapters, parsed.title || getFilenameWithoutExtension(file.name), null, options);
+        if (loaded) showToast(`已导入 ${state.chapters.length} 个章节`);
+      } catch (error) {
+        console.error(error);
+        showToast(error?.message || '解析书籍失败，请检查文件格式');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    async function loadBookFiles(files) {
+      const supported = Array.from(files || []).filter(isBookFile);
+      if (!supported.length) { showToast('请选择 TXT、EPUB 或 ZIP 文件'); return; }
+      if (supported.length > 1) {
+        showToast('一次请选择一本书');
+        return;
+      }
+      await loadBookFile(supported[0]);
+    }
+
+    function loadDemo() {
+      state.demo = true; state.bookTitle = '雾港来信'; $('bookTitle').textContent = state.bookTitle; document.title = `${state.bookTitle} - 阅读器`;
+      state.sourcePath = '';
+      state.sourceType = '';
+      setFolderSource(null);
+      state.chapterEdits = {};
+      state.punctuationHistory = null;
+      state.punctuationOptions = null;
+      $('punctuationUndoBtn').disabled = true;
+      updateEditorResult('');
+      state.chapters = [
+        { title: '第一章 潮汐写下的地址', filename: '01-潮汐写下的地址.txt', isMarkdown: false, content: '凌晨四点，雾港还没有醒来。\n\n潮水退到堤岸之外，露出一条窄窄的石路。林澈沿着石路往前走，手里的信封被海风吹得微微发抖。信上没有寄件人的名字，只有一个地址：灯塔下，第三块蓝色礁石。\n\n他在礁石旁找到了一只旧铁盒。盒盖上刻着一行字：如果你收到了这封信，说明我终于学会了告别。' },
+        { title: '第二章 没有寄出的信', filename: '02-没有寄出的信.txt', isMarkdown: false, content: '铁盒里只有一张折叠得很整齐的纸。纸张已经发黄，墨水却清晰得像刚刚写下。\n\n“林澈，见字如面。你总说海会替人保守秘密，可海水也会把秘密送回岸上。等下一次潮汐来到这里，请替我看看灯塔的光。”\n\n他读了两遍，把信放回盒中。远处的灯塔忽然亮起，像有人在雾里按下了一盏迟到多年的灯。' },
+        { title: '第三章 灯塔的回声', filename: '03-灯塔的回声.txt', isMarkdown: false, content: '天亮以后，雾散得很慢。林澈登上灯塔，窗外的海面被晨光切成细碎的银片。\n\n墙角摆着一台老式收音机，旋钮旁贴着一张褪色的便签：调到 87.6。\n\n杂音之后，熟悉的声音从很远的地方传来。那声音说，别急着把故事读完。有些答案，只有在你愿意继续往前走时，才会出现。' }
+      ];
+      openReader(); renderChapter(0); if (window.innerWidth >= 841) toggleSidebar(true); showToast('已加载示例章节');
+    }
+
+    function openReader() { uploadArea.style.display = 'none'; readerContainer.style.display = 'block'; pageNav.style.display = 'flex'; }
+    function toggleSidebar(force) { const open = typeof force === 'boolean' ? force : !sidebar.classList.contains('open'); sidebar.classList.toggle('open', open); readerContainer.classList.toggle('sidebar-open', open); pageNav.classList.toggle('sidebar-open', open); }
+
+    function copyCurrentChapter() {
+      const chapter = state.chapters[state.currentChapter]; if (!chapter) { showToast('请先导入一本书'); return; }
+      const content = state.directEditing ? getDirectEditContent() : getChapterBodyContent(chapter);
+      const text = chapter.isMarkdown ? markdownToPlainText(content) : content;
+      const done = () => showToast('已复制到剪贴板');
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text)); else fallbackCopy(text);
+    }
+    function fallbackCopy(text) { const textarea = document.createElement('textarea'); textarea.value = text; textarea.style.position = 'fixed'; textarea.style.left = '-9999px'; document.body.appendChild(textarea); textarea.select(); try { document.execCommand('copy'); showToast('已复制到剪贴板'); } catch (_) { showToast('复制失败，请手动选择文本'); } textarea.remove(); }
+    function showToast(message) { $('copyToast').querySelector('span').textContent = message; $('copyToast').classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => $('copyToast').classList.remove('show'), 1700); }
+
+    function applyReadingSettings() {
+      $('fontSizeValue').textContent = `${state.fontSize} px`;
+      document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol').forEach(el => el.style.fontSize = `${state.fontSize}px`);
+      document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol, .chapter-body blockquote').forEach(el => el.style.lineHeight = state.lineHeight);
+      const fonts = { serif: 'Noto Serif SC, Songti SC, serif', sans: 'Inter, Noto Sans SC, sans-serif', kai: 'KaiTi, STKaiti, serif', yuan: 'Yuanti SC, PingFang SC, sans-serif' };
+      readerContent.style.fontFamily = fonts[state.fontFamily] || fonts.serif;
+    }
+    function saveSettings() { setStoredJson('reader_settings', { fontSize: state.fontSize, lineHeight: state.lineHeight, theme: state.theme, fontFamily: state.fontFamily }); }
+    function loadSettings() {
+      const saved = getStoredJson('reader_settings', {});
+      Object.assign(state, { fontSize: saved?.fontSize || 18, lineHeight: saved?.lineHeight || 2.05, theme: saved?.theme || 'default', fontFamily: saved?.fontFamily || 'serif' });
+      document.body.dataset.theme = state.theme; document.querySelectorAll('.theme-swatch').forEach(el => el.classList.toggle('active', el.dataset.theme === state.theme));
+      document.querySelectorAll('[data-font]').forEach(el => el.classList.toggle('active', el.dataset.font === state.fontFamily));
+      document.querySelectorAll('[data-line]').forEach(el => el.classList.toggle('active', Number(el.dataset.line) === Number(state.lineHeight)));
+      applyReadingSettings();
+    }
+    function saveProgress() { if (!state.bookTitle || state.demo) return; setStoredJson(`reader_${state.bookTitle}`, { chapter: state.currentChapter, scroll: readerContainer.scrollTop }); }
+    function restoreProgress() {
+      if (state.demo) return;
+      const saved = getStoredJson(`reader_${state.bookTitle}`);
+      if (saved && saved.chapter < state.chapters.length) {
+        renderChapter(saved.chapter);
+        requestAnimationFrame(() => { readerContainer.scrollTop = saved.scroll || 0; });
+      }
+    }
+
+    folderUploadBox.addEventListener('click', () => toggleImportPanel(true));
+    folderUploadBox.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleImportPanel(true); } });
+    ['dragenter', 'dragover'].forEach(type => folderUploadBox.addEventListener(type, event => { event.preventDefault(); folderUploadBox.classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(type => folderUploadBox.addEventListener(type, event => { event.preventDefault(); folderUploadBox.classList.remove('dragover'); }));
+    folderUploadBox.addEventListener('drop', event => {
+      const files = Array.from(event.dataTransfer.files || []);
+      const hasDroppedBook = files.some(file => /\.(epub|zip)$/i.test(file.name)) || (files.length === 1 && isBookFile(files[0]) && !files[0].webkitRelativePath);
+      if (hasDroppedBook) loadBookFiles(files);
+      else loadFromFiles(files);
+    });
+    folderInput.addEventListener('change', event => { loadFromFiles(event.target.files); event.target.value = ''; });
+    $('openImportBtn').addEventListener('click', event => { event.stopPropagation(); toggleImportPanel(); });
+    $('closeImportBtn').addEventListener('click', () => toggleImportPanel(false));
+    $('chooseBookBtn').addEventListener('click', async () => {
+      toggleImportPanel(false);
+      if (isDesktop) {
+        try {
+          const filePath = await desktopApi.chooseBook();
+          if (filePath) await loadDesktopBookPath(filePath);
+        } catch (error) {
+          console.error(error);
+          showToast('打开书籍失败，请重试');
+        }
+        return;
+      }
+      bookInput.click();
+    });
+    $('chooseFolderBtn').addEventListener('click', () => { toggleImportPanel(false); chooseFolder(); });
+    bookInput.addEventListener('change', event => { loadBookFiles(event.target.files); event.target.value = ''; });
+    $('updateFolderBtn').addEventListener('click', updateFolder);
+    $('reloadSourceBtn').addEventListener('click', reloadSource);
+    $('showSourceBtn').addEventListener('click', showSourceInExplorer);
+    $('loadDemoBtn').addEventListener('click', loadDemo);
+    $('toggleSidebar').addEventListener('click', () => toggleSidebar());
+    $('toolbarCopyBtn').addEventListener('click', copyCurrentChapter);
+    $('editorBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      settingsPanel.classList.remove('show');
+      editorPanel.classList.remove('show');
+      if (state.directEditing) exitDirectEditing();
+      else setDirectEditing(true);
+    });
+    $('punctuationRulesBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      settingsPanel.classList.remove('show');
+      editorPanel.classList.toggle('show');
+    });
+    $('closeEditorBtn').addEventListener('click', () => {
+      editorPanel.classList.remove('show');
+    });
+    dialogSaveBtn.addEventListener('click', () => closeReaderDialog('save'));
+    dialogDiscardBtn.addEventListener('click', () => closeReaderDialog('discard'));
+    dialogKeepEditingBtn.addEventListener('click', () => closeReaderDialog('keep'));
+    readerDialog.addEventListener('click', event => {
+      if (event.target === readerDialog) closeReaderDialog('keep');
+    });
+    $('punctuationReplaceBtn').addEventListener('click', replacePunctuation);
+    $('punctuationUndoBtn').addEventListener('click', undoPunctuation);
+    $('settingsBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      toggleImportPanel(false);
+      editorPanel.classList.remove('show');
+      settingsPanel.classList.toggle('show');
+    });
+    $('closeSettingsBtn').addEventListener('click', () => settingsPanel.classList.remove('show'));
+    document.addEventListener('click', event => {
+      if (!settingsPanel.contains(event.target) && event.target !== $('settingsBtn')) settingsPanel.classList.remove('show');
+      if (!importPanel.contains(event.target) && event.target !== $('openImportBtn')) toggleImportPanel(false);
+      if (!editorPanel.contains(event.target) && event.target !== $('editorBtn') && event.target !== $('punctuationRulesBtn')) editorPanel.classList.remove('show');
+    });
+    $('fontPlus').addEventListener('click', () => { state.fontSize = Math.min(28, state.fontSize + 2); applyReadingSettings(); saveSettings(); });
+    $('fontMinus').addEventListener('click', () => { state.fontSize = Math.max(14, state.fontSize - 2); applyReadingSettings(); saveSettings(); });
+    document.querySelectorAll('.theme-swatch').forEach(button => button.addEventListener('click', () => { state.theme = button.dataset.theme; document.body.dataset.theme = state.theme; document.querySelectorAll('.theme-swatch').forEach(el => el.classList.toggle('active', el === button)); saveSettings(); }));
+    document.querySelectorAll('[data-font]').forEach(button => button.addEventListener('click', () => { state.fontFamily = button.dataset.font; document.querySelectorAll('[data-font]').forEach(el => el.classList.toggle('active', el === button)); applyReadingSettings(); saveSettings(); }));
+    document.querySelectorAll('[data-line]').forEach(button => button.addEventListener('click', () => { state.lineHeight = Number(button.dataset.line); document.querySelectorAll('[data-line]').forEach(el => el.classList.toggle('active', el === button)); applyReadingSettings(); saveSettings(); }));
+    $('prevPageBtn').addEventListener('click', () => { if (state.currentChapter > 0) selectChapter(state.currentChapter - 1); });
+    $('nextPageBtn').addEventListener('click', () => { if (state.currentChapter < state.chapters.length - 1) selectChapter(state.currentChapter + 1); });
+    $('scrollTopBtn').addEventListener('click', () => { readerContainer.scrollTo({ top: 0, behavior: 'smooth' }); });
+    $('scrollBottomBtn').addEventListener('click', () => { readerContainer.scrollTo({ top: readerContainer.scrollHeight, behavior: 'smooth' }); });
+    readerContainer.addEventListener('scroll', () => { const max = readerContent.scrollHeight - readerContainer.clientHeight; progressFill.style.width = `${max > 0 ? (readerContainer.scrollTop / max) * 100 : 0}%`; saveProgress(); });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && pendingReaderDialogResolve) {
+        event.preventDefault();
+        closeReaderDialog('keep');
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        if (state.directEditing) {
+          event.preventDefault(); saveDirectEdit(true); return;
+        }
+      }
+      if (event.target.matches('input, textarea, button')) return;
+      if (event.key === 'ArrowLeft' || event.key === 'PageUp') $('prevPageBtn').click();
+      if (event.key === 'ArrowRight' || event.key === 'PageDown') $('nextPageBtn').click();
+      if (event.key.toLowerCase() === 'b') toggleSidebar();
+      if (event.key === '+' || event.key === '=') $('fontPlus').click();
+      if (event.key === '-' || event.key === '_') $('fontMinus').click();
+    });
+
+    async function restoreSavedFolder() {
+      const saved = await getSavedFolder();
+      if (state.demo || state.chapters.length) return;
+      const snapshot = await getSavedLibrary();
+      const handle = saved?.handle || null;
+      if (handle && await requestFolderPermission(handle, false)) {
+        if (state.demo || state.chapters.length) return;
+        state.punctuationOptions = snapshot?.punctuationOptions || null;
+        state.chapterEdits = { ...loadChapterEdits(handle.name), ...(snapshot?.chapterEdits || {}) };
+        setPunctuationOptions(state.punctuationOptions);
+        setFolderSource(handle);
+        await loadFromDirectory(handle, { isUpdate: false, restoring: true });
+        showToast(`已恢复 ${state.chapters.length} 个章节`);
+        return;
+      }
+      if (!snapshot?.chapters?.length) return;
+      state.demo = false;
+      state.bookTitle = snapshot.bookTitle || '我的小说';
+      state.sourcePath = snapshot.sourcePath || '';
+      state.sourceType = snapshot.sourceType || '';
+      state.chapterEdits = { ...loadChapterEdits(state.bookTitle), ...(snapshot.chapterEdits || {}) };
+      state.chapters = applyChapterEdits(inferChapterTypes(snapshot.chapters));
+      state.punctuationOptions = snapshot.punctuationOptions || null;
+      setPunctuationOptions(state.punctuationOptions);
+      const progress = getStoredJson(`reader_${state.bookTitle}`);
+      state.currentChapter = Math.min(Number(progress?.chapter ?? snapshot.currentChapter) || 0, state.chapters.length - 1);
+      $('bookTitle').textContent = state.bookTitle;
+      document.title = `${state.bookTitle} - 阅读器`;
+      setFolderSource(null);
+      openReader();
+      renderChapter(state.currentChapter);
+      if (progress?.scroll) requestAnimationFrame(() => { readerContainer.scrollTop = progress.scroll; });
+      if (window.innerWidth >= 841 && state.chapters.length >= 3) toggleSidebar(true);
+      showToast('已恢复上次阅读内容，点击更新同步新章节');
+    }
+
+    async function openDesktopPaths(paths) {
+      const bookPaths = Array.isArray(paths) ? paths.filter(Boolean) : [];
+      if (!bookPaths.length) return false;
+      if (bookPaths.length > 1) showToast('一次只能打开一本书，已载入第一个文件');
+      return loadDesktopBookPath(bookPaths[0]);
+    }
+
+    async function startReader() {
+      await initializeDesktopStorage();
+      loadSettings();
+      if (isDesktop) {
+        desktopApi.onOpenBook(paths => {
+          if (!desktopReadyForBooks) {
+            pendingDesktopBookPaths.push(...paths);
+            return;
+          }
+          openDesktopPaths(paths);
+        });
+        const initialPaths = [...await desktopApi.takeOpenBookPaths(), ...pendingDesktopBookPaths.splice(0)];
+        desktopReadyForBooks = true;
+        if (initialPaths.length) {
+          await openDesktopPaths(initialPaths);
+          return;
+        }
+      }
+      await restoreSavedFolder();
+    }
+
+    startReader();
+  </script>
+</body>
+</html>
