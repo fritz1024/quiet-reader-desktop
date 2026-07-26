@@ -1,6 +1,6 @@
 {
   "name": "quiet-reader-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A local EPUB reader with editing support.",
   "main": "main.cjs",
   "private": true,
@@ -9,10 +9,12 @@
     "build:styles": "tailwindcss -c tailwind.config.cjs -i app/tailwind.input.css -o app/vendor/tailwind.css --minify",
     "prepare": "npm run prepare-assets && npm run build:styles",
     "start": "npm run prepare && electron .",
-    "package:win": "npm run prepare && electron-builder --win nsis --x64"
+    "package:win": "npm run prepare && electron-builder --win nsis --x64",
+    "release:win": "npm run prepare && electron-builder --win nsis --x64 --publish always"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
+    "electron-updater": "^6.8.9",
     "jszip": "^3.10.1"
   },
   "devDependencies": {
@@ -24,6 +26,13 @@
     "appId": "com.fritz.quietreader",
     "productName": "静读阅读器",
     "artifactName": "QuietReader-Setup-${version}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "fritz1024",
+        "repo": "quiet-reader-desktop"
+      }
+    ],
     "files": [
       "app/**/*",
       "main.cjs",

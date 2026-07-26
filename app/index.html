@@ -87,7 +87,7 @@
     .chapter-body.epub-cover > * { max-width: 100%; }
     .chapter-body.epub-cover img { width: auto; max-width: min(100%, 580px); max-height: calc(100dvh - 245px); margin: 0 auto; }
     .chapter-end { margin-top: 64px; padding-top: 25px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; text-align: center; }
-    .settings-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 310px; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
+    .settings-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 310px; max-height: calc(100dvh - 96px); overflow-y: auto; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
     .settings-panel.show { display: block; animation: panel-in .16s ease-out; }
     .import-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 310px; padding: 16px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
     .import-panel.show { display: block; animation: panel-in .16s ease-out; }
@@ -111,6 +111,10 @@
     .setting-option { min-height: 34px; padding: 0 9px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: 12px; transition: all .16s ease; }
     .setting-option:hover { color: var(--accent); border-color: var(--accent); }
     .setting-option.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .update-status { min-height: 18px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .update-status.error { color: #b45309; }
+    .update-progress { height: 5px; overflow: hidden; background: var(--surface-2); border-radius: 999px; }
+    .update-progress > span { display: block; width: 0; height: 100%; background: var(--accent); border-radius: inherit; transition: width .2s ease; }
     .edit-check { display: flex; min-height: 36px; align-items: center; gap: 8px; padding: 0 9px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: 12px; transition: color .16s ease, border-color .16s ease, background .16s ease; }
     .edit-check:has(input:checked) { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); }
     .edit-check input { width: 14px; height: 14px; accent-color: var(--accent); }
@@ -332,11 +336,21 @@
           <button class="setting-option" data-font="kai">楷体</button><button class="setting-option" data-font="yuan">圆体</button>
         </div>
       </div>
-      <div>
+      <div class="mb-5">
         <div class="setting-label">行间距</div>
         <div class="grid grid-cols-3 gap-2">
           <button class="setting-option" data-line="1.7">紧凑</button><button class="setting-option active" data-line="2.05">标准</button><button class="setting-option" data-line="2.4">宽松</button>
         </div>
+      </div>
+      <div id="updateSection" class="border-t border-line pt-5" hidden>
+        <div class="mb-3 flex items-start justify-between gap-3">
+          <div><div class="setting-label mb-1">应用更新</div><div class="text-xs font-bold" id="appVersion">当前版本</div></div>
+          <button class="icon-button" id="checkUpdateBtn" type="button" title="检查更新" aria-label="检查更新"><i class="fa-solid fa-rotate"></i></button>
+        </div>
+        <div class="update-status" id="updateStatus" aria-live="polite">正在准备更新服务...</div>
+        <div class="update-progress mt-3" id="updateProgress" hidden><span id="updateProgressFill"></span></div>
+        <button class="primary-button mt-3 hidden w-full" id="downloadUpdateBtn" type="button"><i class="fa-solid fa-download"></i><span>下载更新</span></button>
+        <button class="primary-button mt-3 hidden w-full" id="installUpdateBtn" type="button"><i class="fa-solid fa-rotate"></i><span>重启并安装</span></button>
       </div>
     </section>
 
@@ -402,6 +416,7 @@
     let desktopStorageTimer = null;
     let desktopReadyForBooks = false;
     const pendingDesktopBookPaths = [];
+    let updateInfo = null;
 
     const state = {
       chapters: [], currentChapter: 0, fontSize: 18, lineHeight: 2.05,
@@ -437,6 +452,50 @@
     const folderStoreName = 'sources';
     let folderDatabasePromise;
     let pendingReaderDialogResolve = null;
+
+    function setUpdateButtonLoading(button, loading) {
+      button.disabled = loading;
+      button.classList.toggle('opacity-60', loading);
+      button.classList.toggle('cursor-wait', loading);
+    }
+
+    function renderUpdateStatus(info) {
+      updateInfo = info && typeof info === 'object' ? info : null;
+      const section = $('updateSection');
+      if (!isDesktop || !updateInfo) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      const version = updateInfo.version ? `当前版本 v${updateInfo.version}` : '当前版本';
+      $('appVersion').textContent = version;
+      const status = updateInfo.status || 'idle';
+      const statusText = $('updateStatus');
+      statusText.textContent = updateInfo.message || '可检查最新版本';
+      statusText.classList.toggle('error', status === 'error');
+      const checking = status === 'checking';
+      const downloading = status === 'downloading';
+      setUpdateButtonLoading($('checkUpdateBtn'), checking || downloading || status === 'installing');
+      $('checkUpdateBtn').disabled = !updateInfo.enabled || checking || downloading || status === 'installing';
+      const showProgress = downloading || status === 'downloaded';
+      $('updateProgress').hidden = !showProgress;
+      $('updateProgressFill').style.width = `${Math.max(0, Math.min(100, Number(updateInfo.percent) || 0))}%`;
+      $('downloadUpdateBtn').classList.toggle('hidden', status !== 'available');
+      $('downloadUpdateBtn').disabled = status !== 'available';
+      $('installUpdateBtn').classList.toggle('hidden', status !== 'downloaded');
+      $('installUpdateBtn').disabled = status !== 'downloaded';
+    }
+
+    async function initializeUpdater() {
+      if (!isDesktop || !desktopApi?.getUpdateInfo) return;
+      desktopApi.onUpdateStatus(renderUpdateStatus);
+      try {
+        renderUpdateStatus(await desktopApi.getUpdateInfo());
+      } catch (error) {
+        console.error(error);
+        renderUpdateStatus({ enabled: false, status: 'error', message: '无法读取更新状态' });
+      }
+    }
 
     async function initializeDesktopStorage() {
       if (!isDesktop) return;
@@ -1721,6 +1780,31 @@
       settingsPanel.classList.toggle('show');
     });
     $('closeSettingsBtn').addEventListener('click', () => settingsPanel.classList.remove('show'));
+    $('checkUpdateBtn').addEventListener('click', async () => {
+      if (!desktopApi?.checkForUpdates) return;
+      try {
+        await desktopApi.checkForUpdates();
+      } catch (error) {
+        console.error(error);
+        showToast('检查更新失败，请稍后重试');
+      }
+    });
+    $('downloadUpdateBtn').addEventListener('click', async () => {
+      if (!desktopApi?.downloadUpdate) return;
+      try {
+        await desktopApi.downloadUpdate();
+      } catch (error) {
+        console.error(error);
+        showToast('下载更新失败，请稍后重试');
+      }
+    });
+    $('installUpdateBtn').addEventListener('click', () => {
+      if (!desktopApi?.installUpdate) return;
+      desktopApi.installUpdate().catch(error => {
+        console.error(error);
+        showToast('启动更新失败，请稍后重试');
+      });
+    });
     document.addEventListener('click', event => {
       if (!settingsPanel.contains(event.target) && event.target !== $('settingsBtn')) settingsPanel.classList.remove('show');
       if (!importPanel.contains(event.target) && event.target !== $('openImportBtn')) toggleImportPanel(false);
@@ -1801,6 +1885,7 @@
     async function startReader() {
       await initializeDesktopStorage();
       loadSettings();
+      initializeUpdater();
       if (isDesktop) {
         desktopApi.onOpenBook(paths => {
           if (!desktopReadyForBooks) {

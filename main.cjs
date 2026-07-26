@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
@@ -11,6 +12,148 @@ app.setName(APP_NAME);
 let mainWindow = null;
 let pendingBookPaths = [];
 let storageWrite = Promise.resolve();
+let updateSupported = false;
+let updateAction = '';
+let updateStatus = {
+  enabled: false,
+  status: 'unsupported',
+  version: app.getVersion(),
+  message: '当前版本不支持应用内更新'
+};
+
+function sendUpdateStatus(status, payload = {}) {
+  updateStatus = { ...updateStatus, status, ...payload };
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('reader:update-status', updateStatus);
+  }
+}
+
+function getUpdateErrorMessage(error) {
+  const message = String(error?.message || error || '');
+  if (/404|no published versions|cannot find latest version/i.test(message)) {
+    return '暂未发布可用更新，请稍后再试';
+  }
+  if (/network|enotfound|econn|timeout|fetch/i.test(message)) {
+    return '无法连接更新服务，请检查网络后重试';
+  }
+  return updateAction === 'download' ? '下载更新失败，请稍后重试' : '检查更新失败，请稍后重试';
+}
+
+function reportUpdateError(error) {
+  sendUpdateStatus('error', { message: getUpdateErrorMessage(error), error: String(error?.message || error || '') });
+}
+
+async function hasNsisUninstaller() {
+  try {
+    const files = await fs.readdir(path.dirname(process.execPath));
+    return files.some(file => /^uninstall .*\.exe$/i.test(file));
+  } catch (_) {
+    return false;
+  }
+}
+
+async function configureAutoUpdater() {
+  updateSupported = app.isPackaged
+    && process.platform === 'win32'
+    && !process.env.PORTABLE_EXECUTABLE_DIR
+    && !process.env.QUIET_READER_DISABLE_UPDATES
+    && await hasNsisUninstaller();
+
+  if (!updateSupported) {
+    sendUpdateStatus('unsupported', {
+      enabled: false,
+      version: app.getVersion(),
+      message: app.isPackaged ? '便携版不支持应用内更新，请使用安装版' : '开发环境不检查更新'
+    });
+    return;
+  }
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.allowDowngrade = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdateStatus('checking', { enabled: true, version: app.getVersion(), message: '正在检查更新...' });
+  });
+  autoUpdater.on('update-available', info => {
+    sendUpdateStatus('available', {
+      enabled: true,
+      version: app.getVersion(),
+      availableVersion: info.version,
+      releaseDate: info.releaseDate || '',
+      message: `发现新版本 v${info.version}`
+    });
+  });
+  autoUpdater.on('update-not-available', () => {
+    sendUpdateStatus('not-available', {
+      enabled: true,
+      version: app.getVersion(),
+      message: '当前已是最新版本'
+    });
+  });
+  autoUpdater.on('download-progress', progress => {
+    sendUpdateStatus('downloading', {
+      enabled: true,
+      version: app.getVersion(),
+      percent: Math.max(0, Math.min(100, Math.round(progress.percent || 0))),
+      message: '正在下载更新...'
+    });
+  });
+  autoUpdater.on('update-downloaded', info => {
+    updateAction = '';
+    sendUpdateStatus('downloaded', {
+      enabled: true,
+      version: app.getVersion(),
+      availableVersion: info.version,
+      percent: 100,
+      message: '新版本已下载，重启后即可安装'
+    });
+  });
+  autoUpdater.on('error', error => {
+    updateAction = '';
+    reportUpdateError(error);
+  });
+
+  sendUpdateStatus('idle', {
+    enabled: true,
+    version: app.getVersion(),
+    message: '可检查 GitHub Releases 中的最新版本'
+  });
+}
+
+async function checkForUpdates() {
+  if (!updateSupported) return { ok: false, reason: 'unsupported' };
+  if (updateStatus.status === 'checking') return { ok: false, reason: 'busy' };
+  updateAction = 'check';
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (error) {
+    updateAction = '';
+    reportUpdateError(error);
+    return { ok: false, reason: 'error' };
+  }
+}
+
+async function downloadUpdate() {
+  if (!updateSupported || updateStatus.status !== 'available') return { ok: false, reason: 'unavailable' };
+  updateAction = 'download';
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (error) {
+    updateAction = '';
+    reportUpdateError(error);
+    return { ok: false, reason: 'error' };
+  }
+}
+
+function installUpdate() {
+  if (!updateSupported || updateStatus.status !== 'downloaded') return { ok: false, reason: 'unavailable' };
+  sendUpdateStatus('installing', { message: '正在重启并安装更新...' });
+  autoUpdater.quitAndInstall(false, true);
+  return { ok: true };
+}
 
 function isSupportedBookPath(filePath) {
   return BOOK_EXTENSIONS.has(path.extname(String(filePath || '')).toLowerCase());
@@ -118,7 +261,10 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'app', 'index.html'));
-  mainWindow.webContents.once('did-finish-load', flushBookPaths);
+  mainWindow.webContents.once('did-finish-load', () => {
+    flushBookPaths();
+    mainWindow.webContents.send('reader:update-status', updateStatus);
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
@@ -144,6 +290,9 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     app.setAppUserModelId('com.fritz.quietreader');
     createWindow();
+    configureAutoUpdater().then(() => {
+      if (updateSupported) setTimeout(() => { checkForUpdates(); }, 5000);
+    });
 
     ipcMain.handle('reader:choose-book', async () => {
       const result = await dialog.showOpenDialog(mainWindow, {
@@ -183,6 +332,10 @@ if (!gotTheLock) {
     ipcMain.handle('reader:take-open-book-paths', () => pendingBookPaths.splice(0));
     ipcMain.handle('reader:get-storage', () => readStorage());
     ipcMain.handle('reader:save-storage', async (_event, data) => { await writeStorage(data); return true; });
+    ipcMain.handle('reader:get-update-info', () => updateStatus);
+    ipcMain.handle('reader:check-for-updates', () => checkForUpdates());
+    ipcMain.handle('reader:download-update', () => downloadUpdate());
+    ipcMain.handle('reader:install-update', () => installUpdate());
   });
 
   app.on('window-all-closed', () => {
