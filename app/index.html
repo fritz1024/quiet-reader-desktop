@@ -8,8 +8,26 @@
 
   <link rel="stylesheet" href="vendor/tailwind.css">
   <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+  <link rel="stylesheet" href="vendor/fonts/noto-serif-sc/index.css">
+  <link rel="stylesheet" href="vendor/fonts/noto-sans-sc/index.css">
   <script src="vendor/jszip.min.js"></script>
   <style>
+    @font-face {
+      font-family: "LXGW WenKai Reader";
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url("vendor/fonts/custom/LXGWWenKai-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Smiley Sans Reader";
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url("vendor/fonts/custom/SmileySans-Oblique.ttf.woff2") format("woff2");
+    }
+
     :root {
       --bg: #f7f7f4;
       --surface: #fffefa;
@@ -36,7 +54,9 @@
     button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 27%, transparent); outline-offset: 2px; }
     .app-shell { position: relative; height: 100dvh; min-height: 560px; }
     .topbar { height: 72px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(18px); }
-    .brand-mark { display: grid; width: 36px; height: 36px; place-items: center; color: #fff; background: var(--accent); border-radius: 10px; box-shadow: 0 7px 15px color-mix(in srgb, var(--accent) 25%, transparent); }
+    .brand-mark { display: grid; width: 36px; height: 36px; place-items: center; color: #fff; background: var(--accent); border: 0; border-radius: 10px; box-shadow: 0 7px 15px color-mix(in srgb, var(--accent) 25%, transparent); cursor: pointer; transition: background .16s ease, transform .16s ease, box-shadow .16s ease; }
+    .brand-mark:hover { background: var(--accent-dark); box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 28%, transparent); transform: translateY(-1px); }
+    .brand-mark:active { transform: translateY(1px); }
     .icon-button { display: grid; width: 38px; height: 38px; place-items: center; color: var(--muted); border: 1px solid transparent; border-radius: 9px; transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease; }
     .icon-button:hover { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 14%, transparent); }
     .icon-button:active { transform: translateY(1px); }
@@ -49,23 +69,34 @@
     .copy-button:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
     .update-folder-button, .source-action-button { display: none; }
     .update-folder-button.show, .source-action-button.show { display: inline-flex; }
+    .topbar-actions { display: flex; min-width: 0; margin-left: auto; align-items: center; gap: 12px; }
+    .topbar-command-group { display: flex; align-items: center; gap: 6px; }
+    .topbar-command-group .secondary-button, .topbar-command-group .copy-button { display: grid; width: 38px; height: 38px; padding: 0; }
+    .topbar-command-group span { display: none; }
+    .topbar-tool-group { display: flex; align-items: center; gap: 2px; padding: 2px; background: color-mix(in srgb, var(--surface-2) 72%, transparent); border: 1px solid var(--line); border-radius: 10px; }
+    .topbar-tool-group .icon-button { border-radius: 7px; }
+    .topbar-tool-group .update-folder-button.show, .topbar-tool-group .source-action-button.show { display: grid; }
+    .topbar-source-tools { display: flex; align-items: center; gap: 2px; margin-left: 3px; padding-left: 5px; border-left: 1px solid var(--line); }
+    .topbar-source-tools:not(:has(.show)) { display: none; }
+    .topbar-settings-group { display: flex; align-items: center; padding-left: 11px; border-left: 1px solid var(--line); }
     .progress-track { height: 2px; background: transparent; }
     .progress-fill { width: 0; height: 100%; background: var(--accent); transition: width .12s linear; }
     .sidebar { position: fixed; top: 72px; bottom: 0; left: 0; z-index: 30; width: 292px; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--line); transform: translateX(-100%); transition: transform .24s ease; }
     .sidebar.open { transform: translateX(0); }
     .reader-shell { position: fixed; top: 74px; right: 0; bottom: 0; left: 0; overflow-y: auto; scroll-behavior: smooth; transition: left .24s ease; }
     .reader-shell.sidebar-open { left: 292px; }
-    .reader-paper { max-width: 760px; min-height: calc(100% - 48px); margin: 24px auto 48px; padding: 68px 72px 100px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 30px var(--shadow); }
-    .chapter-title { margin: 0 auto; color: var(--text); font-family: "Noto Serif SC", Songti SC, serif; font-size: clamp(27px, 3.1vw, 38px); font-weight: 600; letter-spacing: 0; line-height: 1.4; text-align: center; }
+    .reader-paper { max-width: 760px; min-height: calc(100% - 48px); margin: 24px auto 48px; padding: var(--reader-paper-padding, 68px 72px 100px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 30px var(--shadow); }
+    .chapter-title { margin: 0 auto; color: var(--text); font-family: var(--reader-font-family, "Noto Serif SC Variable", serif); font-size: clamp(27px, 3.1vw, 38px); font-weight: 600; letter-spacing: 0; line-height: 1.4; text-align: center; }
     .chapter-divider { width: 52px; height: 3px; margin: 24px auto 16px; background: var(--accent); border-radius: 99px; }
     .chapter-meta { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 12px; }
     .meta-dot { width: 3px; height: 3px; background: var(--line); border-radius: 50%; }
     .meta-accent { color: var(--warm); font-weight: 600; }
-    .chapter-body { color: var(--text); font-family: "Noto Serif SC", Songti SC, serif; }
+    .chapter-body { color: var(--text); font-family: var(--reader-font-family, "Noto Serif SC Variable", serif); }
     .chapter-body.direct-editing { outline: 1px dashed color-mix(in srgb, var(--accent) 48%, var(--line)); outline-offset: 12px; }
+    .chapter-body.direct-editing.raw-markdown { white-space: pre-wrap; text-align: left; text-indent: 0; }
     .chapter-body[contenteditable="true"] { caret-color: var(--accent); cursor: text; }
     .chapter-body p { margin: 0 0 1.15em; font-size: 18px; line-height: 2.05; text-align: justify; text-indent: 2em; overflow-wrap: break-word; }
-    .chapter-body h2, .chapter-body h3, .chapter-body h4 { margin: 2em 0 .8em; color: var(--text); font-family: Inter, "Noto Sans SC", sans-serif; font-weight: 700; line-height: 1.45; }
+    .chapter-body h2, .chapter-body h3, .chapter-body h4 { margin: 2em 0 .8em; color: var(--text); font-family: var(--reader-font-family, "Noto Serif SC Variable", serif); font-weight: 700; line-height: 1.45; }
     .chapter-body h2 { padding-bottom: .45em; border-bottom: 1px solid var(--line); font-size: 1.35em; }
     .chapter-body h3 { font-size: 1.18em; }
     .chapter-body h4 { font-size: 1.05em; }
@@ -86,6 +117,9 @@
     .chapter-body.epub-cover { display: grid; min-height: calc(100dvh - 235px); place-items: center; }
     .chapter-body.epub-cover > * { max-width: 100%; }
     .chapter-body.epub-cover img { width: auto; max-width: min(100%, 580px); max-height: calc(100dvh - 245px); margin: 0 auto; }
+    .search-match { padding: .05em .08em; color: inherit; background: color-mix(in srgb, #f2c94c 58%, transparent); border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+    .search-match.active { outline: 2px solid color-mix(in srgb, var(--accent) 68%, transparent); outline-offset: 1px; }
+    .annotation-mark { padding: .03em .06em; color: inherit; background: color-mix(in srgb, var(--warm) 23%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--warm) 58%, transparent); border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
     .chapter-end { margin-top: 64px; padding-top: 25px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; text-align: center; }
     .settings-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 310px; max-height: calc(100dvh - 96px); overflow-y: auto; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
     .settings-panel.show { display: block; animation: panel-in .16s ease-out; }
@@ -99,6 +133,55 @@
     .import-choice-note { margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.5; }
     .editor-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 440px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 96px); overflow-y: auto; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
     .editor-panel.show { display: block; animation: panel-in .16s ease-out; }
+    .backup-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 440px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 96px); overflow-y: auto; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
+    .backup-panel.show { display: block; animation: panel-in .16s ease-out; }
+    .search-panel, .marks-panel, .export-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 440px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 96px); overflow-y: auto; padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 55px var(--shadow); }
+    .search-panel.show, .marks-panel.show, .export-panel.show { display: block; animation: panel-in .16s ease-out; }
+    .panel-input, .panel-select, .note-input { width: 100%; min-height: 38px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; font-size: 12px; outline: none; }
+    .panel-input, .note-input { padding: 0 11px; }
+    .panel-input:focus, .panel-select:focus, .note-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+    .panel-select { padding: 0 9px; }
+    .note-input { min-height: 82px; padding: 9px 11px; line-height: 1.6; resize: vertical; }
+    .search-panel { width: 344px; max-height: min(580px, calc(100dvh - 96px)); overflow: hidden; padding: 14px; }
+    .search-panel.show { display: flex; flex-direction: column; animation: panel-in .16s ease-out; }
+    .search-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    .search-scope { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 10px; padding: 3px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }
+    .search-scope-option { min-height: 30px; padding: 0 8px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: 700; }
+    .search-scope-option:hover { color: var(--text); background: color-mix(in srgb, var(--surface) 76%, transparent); }
+    .search-scope-option.active { color: var(--accent); background: var(--surface); border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); box-shadow: 0 1px 3px var(--shadow); }
+    .search-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px; margin-top: 10px; }
+    .search-nav-button { display: grid; width: 38px; height: 38px; place-items: center; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; transition: color .16s ease, background .16s ease, border-color .16s ease; }
+    .search-nav-button:hover:not(:disabled) { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+    .search-nav-button:disabled { opacity: .42; cursor: default; }
+    .search-summary { min-height: 18px; margin: 8px 1px 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .search-results { display: grid; flex: 1; min-height: 0; align-content: start; gap: 6px; margin-top: 8px; padding-right: 2px; overflow-y: auto; overscroll-behavior: contain; }
+    .search-result { display: grid; width: 100%; gap: 3px; padding: 8px 9px; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; text-align: left; }
+    .search-result:hover, .search-result.active { border-color: color-mix(in srgb, var(--accent) 44%, var(--line)); background: var(--accent-soft); }
+    .search-result-chapter { color: var(--accent); font-size: 11px; font-weight: 700; line-height: 1.45; }
+    .search-result-snippet { overflow: hidden; display: -webkit-box; color: var(--muted); font-size: 12px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .search-snippet-match { color: inherit; background: color-mix(in srgb, #f2c94c 52%, transparent); }
+    .mark-list { display: grid; gap: 8px; }
+    .mark-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 11px; border: 1px solid var(--line); border-radius: 7px; }
+    .mark-open { display: grid; gap: 4px; min-width: 0; padding: 0; color: var(--text); background: transparent; border: 0; cursor: pointer; text-align: left; }
+    .mark-title { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 700; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+    .mark-quote, .mark-note { overflow: hidden; color: var(--muted); font-size: 11px; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
+    .mark-note { color: var(--text); white-space: normal; }
+    .mark-actions { display: flex; align-items: flex-start; gap: 2px; }
+    .mark-action { display: grid; width: 30px; height: 30px; place-items: center; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+    .mark-action:hover { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); }
+    .mark-action.delete:hover { color: var(--warm); background: color-mix(in srgb, var(--warm) 10%, var(--surface)); border-color: color-mix(in srgb, var(--warm) 25%, var(--line)); }
+    .mark-editor { margin-bottom: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }
+    .panel-empty { padding: 22px 8px; color: var(--muted); font-size: 12px; line-height: 1.7; text-align: center; }
+    .mobile-more-button { display: none; }
+    .mobile-more-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 220px; max-width: calc(100vw - 24px); padding: 8px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 55px var(--shadow); }
+    .mobile-more-panel.show { display: grid; gap: 3px; animation: panel-in .16s ease-out; }
+    .mobile-more-action { display: flex; width: 100%; min-height: 40px; align-items: center; gap: 10px; padding: 0 11px; color: var(--text); background: transparent; border: 0; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 600; text-align: left; }
+    .mobile-more-action:hover { color: var(--accent); background: var(--accent-soft); }
+    .backup-list { display: grid; gap: 8px; }
+    .backup-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+    .backup-item-time { font-size: 12px; font-weight: 700; line-height: 1.45; }
+    .backup-item-meta { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .backup-empty { padding: 28px 10px; color: var(--muted); font-size: 12px; line-height: 1.7; text-align: center; }
     @keyframes panel-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
     .setting-label { margin-bottom: 9px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
     .theme-swatch { position: relative; height: 34px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; transition: transform .16s ease, border-color .16s ease; }
@@ -127,6 +210,29 @@
     .empty-grid::before, .empty-grid::after { position: absolute; z-index: -1; width: 180px; height: 140px; content: ""; background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 14px 14px; opacity: .6; }
     .empty-grid::before { top: -12px; left: -28px; }
     .empty-grid::after { right: -28px; bottom: -16px; }
+    .home-content { width: min(780px, 100%); margin: 0 auto; padding: 48px 20px 72px; }
+    .home-hero { min-height: min(560px, calc(100dvh - 74px)); display: flex; align-items: center; justify-content: center; }
+    .history-section { margin-top: 4px; padding-top: 30px; border-top: 1px solid var(--line); }
+    .history-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .history-controls { display: grid; grid-template-columns: minmax(0, 1fr) 122px; gap: 8px; margin-top: 16px; }
+    .history-list { display: grid; gap: 10px; margin-top: 16px; }
+    .history-item { display: flex; width: 100%; align-items: center; gap: 7px; padding: 13px 12px 13px 14px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; transition: background .16s ease, border-color .16s ease, transform .16s ease, box-shadow .16s ease; }
+    .history-item:hover { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 36%, var(--line)); box-shadow: 0 8px 20px var(--shadow); transform: translateY(-1px); }
+    .history-open { display: grid; flex: 1; min-width: 0; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 13px; padding: 0; color: inherit; background: transparent; border: 0; cursor: pointer; text-align: left; }
+    .history-remove { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 7px; cursor: pointer; transition: color .16s ease, background .16s ease, border-color .16s ease; }
+    .history-remove:hover { color: var(--warm); background: color-mix(in srgb, var(--warm) 10%, var(--surface)); border-color: color-mix(in srgb, var(--warm) 27%, var(--line)); }
+    .history-pin, .history-relink { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 7px; cursor: pointer; transition: color .16s ease, background .16s ease, border-color .16s ease; }
+    .history-pin:hover, .history-pin.active { color: var(--warm); background: color-mix(in srgb, var(--warm) 11%, var(--surface)); border-color: color-mix(in srgb, var(--warm) 26%, var(--line)); }
+    .history-relink:hover { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 26%, var(--line)); }
+    .history-item.missing { border-style: dashed; }
+    .history-missing { color: var(--warm); font-weight: 700; }
+    .history-item-icon { display: grid; width: 42px; height: 42px; place-items: center; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); border-radius: 8px; }
+    .history-item-title { overflow: hidden; font-size: 13px; font-weight: 700; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+    .history-item-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .history-item-action { display: inline-flex; align-items: center; gap: 7px; color: var(--accent); font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .history-empty { display: flex; align-items: center; gap: 11px; margin-top: 16px; padding: 16px 2px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .history-empty-icon { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 8px; }
+    .home-mode .reader-only { display: none !important; }
     .chapter-list { list-style: none; }
     .chapter-item { position: relative; display: flex; gap: 12px; align-items: flex-start; width: 100%; padding: 11px 14px; color: var(--muted); border: 1px solid transparent; border-radius: 9px; cursor: pointer; text-align: left; transition: color .15s ease, background .15s ease, border-color .15s ease; }
     .chapter-item:hover { color: var(--text); background: var(--surface-2); }
@@ -166,12 +272,20 @@
       .sidebar { top: 64px; width: min(310px, 86vw); box-shadow: 12px 0 30px var(--shadow); }
       .reader-shell { top: 66px; }
       .reader-shell.sidebar-open { left: min(310px, 86vw); }
-      .reader-paper { min-height: calc(100% - 24px); margin: 12px 14px 36px; padding: 43px 26px 90px; border-radius: 12px; }
+      .reader-paper { min-height: calc(100% - 24px); margin: 12px 14px 36px; padding: var(--reader-paper-padding-mobile, 43px 26px 90px); border-radius: 12px; }
       .chapter-body p, .chapter-body ul, .chapter-body ol { font-size: 17px; }
       .bottom-nav { --sidebar-width: min(310px, 86vw); bottom: 10px; opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
       .nav-button { min-width: 88px; }
     }
-     @media (max-width: 540px) {
+    @media (max-width: 1120px) {
+      .topbar-actions { gap: 7px; }
+      .topbar-tool-group, .topbar-settings-group { display: none; }
+      .mobile-more-button { display: grid; width: 38px; height: 38px; padding: 0; }
+    }
+    @media (max-width: 920px) {
+      .topbar-command-group { gap: 4px; }
+    }
+     @media (max-width: 739px) {
       .brand-copy { display: none; }
       .topbar { padding: 0 13px; }
       .topbar .primary-button { min-height: 36px; padding: 0 11px; font-size: 12px; }
@@ -186,11 +300,26 @@
       .punctuation-rules-trigger span { display: none; }
        .copy-button { display: grid; width: 38px; height: 38px; padding: 0; }
        .copy-button span { display: none; }
+       .mobile-more-button { display: grid; width: 38px; height: 38px; padding: 0; }
+       .mobile-overflow-item { display: none !important; }
        .settings-panel { top: 72px; right: 12px; width: min(310px, calc(100vw - 24px)); }
        .import-panel { top: 72px; right: 12px; width: min(310px, calc(100vw - 24px)); }
        .editor-panel { top: 72px; right: 12px; width: min(440px, calc(100vw - 24px)); }
+       .backup-panel { top: 72px; right: 12px; width: min(440px, calc(100vw - 24px)); }
+       .marks-panel, .export-panel { top: 72px; right: 12px; width: min(440px, calc(100vw - 24px)); }
+       .search-panel { top: 72px; right: 8px; width: min(360px, calc(100vw - 16px)); max-height: calc(100dvh - 84px); }
+       .mobile-more-panel { top: 72px; right: 12px; }
       .empty-grid::before, .empty-grid::after { display: none; }
+      .home-content { padding: 30px 16px 48px; }
+      .home-hero { min-height: 0; padding: 26px 0 44px; }
       .upload-zone { padding: 26px 18px; }
+      .history-item { gap: 5px; padding: 12px 9px 12px 12px; }
+      .history-open { grid-template-columns: 38px minmax(0, 1fr); gap: 11px; }
+      .history-item-icon { width: 38px; height: 38px; }
+      .history-item-action { grid-column: 2; justify-self: start; margin-top: -2px; }
+      .history-remove { flex-basis: 34px; width: 34px; height: 34px; }
+      .history-controls { grid-template-columns: 1fr; }
+      .history-pin, .history-relink { flex-basis: 30px; width: 30px; height: 30px; }
       .sidebar { width: min(260px, 78vw); box-shadow: 12px 0 30px var(--shadow); }
       .reader-shell.sidebar-open { left: 0; }
       .reader-paper { margin: 0; min-height: 100%; border: 0; border-radius: 0; box-shadow: none; }
@@ -204,41 +333,64 @@
      }
   </style>
 </head>
-<body data-theme="default">
+<body data-theme="default" class="home-mode">
   <div class="app-shell">
     <header class="topbar fixed inset-x-0 top-0 z-50 flex items-center gap-3 px-5" aria-label="顶部工具栏">
-      <button class="icon-button shrink-0" id="toggleSidebar" title="打开目录" aria-label="打开目录">
+      <button class="icon-button shrink-0 reader-only" id="toggleSidebar" title="打开目录" aria-label="打开目录">
         <i class="fa-solid fa-bars-staggered text-[15px]"></i>
       </button>
-      <div class="brand-mark shrink-0"><i class="fa-solid fa-book-open text-[15px]"></i></div>
+      <button class="brand-mark shrink-0" id="homeBtn" type="button" title="返回首页" aria-label="返回首页"><i class="fa-solid fa-book-open text-[15px]"></i></button>
       <div class="brand-copy min-w-0">
         <div class="text-[14px] font-bold tracking-[-.01em]" id="bookTitle">阅读器</div>
         <div class="mt-0.5 text-[10px] font-semibold uppercase tracking-[.12em] text-muted">Quiet reading space</div>
       </div>
-      <div class="ml-auto flex items-center gap-1.5">
-        <button class="secondary-button book-import-button" id="openImportBtn" title="导入书籍或章节文件夹" aria-label="导入书籍或章节文件夹" aria-expanded="false">
-          <i class="fa-solid fa-file-import text-[12px]"></i><span>导入</span>
-        </button>
-        <button class="secondary-button update-folder-button" id="updateFolderBtn" title="更新章节" aria-label="更新章节">
-          <i class="fa-solid fa-arrows-rotate text-[12px]"></i><span>更新章节</span>
-        </button>
-        <button class="secondary-button source-action-button" id="reloadSourceBtn" title="从原文件重新读取" aria-label="从原文件重新读取">
-          <i class="fa-solid fa-rotate text-[12px]"></i><span>重新载入</span>
-        </button>
-        <button class="icon-button source-action-button" id="showSourceBtn" title="在资源管理器中显示原始文件" aria-label="在资源管理器中显示原始文件">
-          <i class="fa-solid fa-folder-tree text-[14px]"></i>
-        </button>
-        <button class="secondary-button editor-trigger" id="editorBtn" title="直接编辑正文" aria-label="直接编辑正文">
-          <i class="fa-solid fa-pen-to-square text-[12px]"></i><span>编辑正文</span>
-        </button>
-        <button class="secondary-button punctuation-rules-trigger" id="punctuationRulesBtn" title="标点符号替换规则" aria-label="标点符号替换规则">
-          <i class="fa-solid fa-wand-magic-sparkles text-[12px]"></i><span>标点规则</span>
-        </button>
-        <button class="secondary-button copy-button" id="toolbarCopyBtn" title="复制本章正文" aria-label="复制本章正文">
-          <i class="fa-regular fa-copy text-[14px]"></i><span>复制正文</span>
-        </button>
-        <button class="icon-button" id="settingsBtn" title="阅读设置" aria-label="阅读设置">
-          <i class="fa-solid fa-sliders text-[15px]"></i>
+      <div class="topbar-actions">
+        <div class="topbar-command-group">
+          <button class="secondary-button book-import-button" id="openImportBtn" title="导入书籍或章节文件夹" aria-label="导入书籍或章节文件夹" aria-expanded="false">
+            <i class="fa-solid fa-file-import text-[12px]"></i><span>导入</span>
+          </button>
+          <button class="secondary-button editor-trigger reader-only" id="editorBtn" title="直接编辑正文" aria-label="直接编辑正文">
+            <i class="fa-solid fa-pen-to-square text-[12px]"></i><span>编辑正文</span>
+          </button>
+          <button class="secondary-button copy-button reader-only" id="toolbarCopyBtn" title="复制本章正文" aria-label="复制本章正文">
+            <i class="fa-regular fa-copy text-[14px]"></i><span>复制正文</span>
+          </button>
+        </div>
+        <div class="topbar-tool-group reader-only" aria-label="阅读工具">
+          <button class="icon-button" id="searchBtn" title="搜索" aria-label="搜索">
+            <i class="fa-solid fa-magnifying-glass text-[14px]"></i>
+          </button>
+          <button class="icon-button" id="marksBtn" title="书签与批注" aria-label="书签与批注">
+            <i class="fa-solid fa-bookmark text-[14px]"></i>
+          </button>
+          <button class="icon-button" id="exportBtn" title="导出正文" aria-label="导出正文">
+            <i class="fa-solid fa-file-export text-[14px]"></i>
+          </button>
+          <button class="icon-button" id="punctuationRulesBtn" title="标点符号替换规则" aria-label="标点符号替换规则">
+            <i class="fa-solid fa-wand-magic-sparkles text-[14px]"></i>
+          </button>
+          <div class="topbar-source-tools" aria-label="源文件工具">
+            <button class="icon-button update-folder-button" id="updateFolderBtn" title="更新章节" aria-label="更新章节">
+              <i class="fa-solid fa-arrows-rotate text-[14px]"></i>
+            </button>
+            <button class="icon-button source-action-button" id="reloadSourceBtn" title="从原文件重新读取" aria-label="从原文件重新读取">
+              <i class="fa-solid fa-rotate text-[14px]"></i>
+            </button>
+            <button class="icon-button source-action-button" id="sourceBackupBtn" title="查看原文件备份" aria-label="查看原文件备份">
+              <i class="fa-solid fa-clock-rotate-left text-[14px]"></i>
+            </button>
+            <button class="icon-button source-action-button" id="showSourceBtn" title="在资源管理器中显示原始文件" aria-label="在资源管理器中显示原始文件">
+              <i class="fa-solid fa-folder-tree text-[14px]"></i>
+            </button>
+          </div>
+        </div>
+        <div class="topbar-settings-group">
+          <button class="icon-button" id="settingsBtn" title="阅读设置" aria-label="阅读设置">
+            <i class="fa-solid fa-sliders text-[15px]"></i>
+          </button>
+        </div>
+        <button class="icon-button mobile-more-button" id="mobileMoreBtn" type="button" title="更多功能" aria-label="更多功能" aria-expanded="false">
+          <i class="fa-solid fa-ellipsis text-[15px]"></i>
         </button>
         <input type="file" id="bookInput" accept=".txt,.md,.markdown,.epub,.zip,text/plain,application/epub+zip,application/zip" hidden>
         <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
@@ -251,9 +403,10 @@
 
     <aside class="sidebar scrollbar-thin" id="sidebar" aria-label="章节目录">
       <div class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] px-5 py-5 backdrop-blur-md">
-        <div>
+        <div class="min-w-0">
           <div class="text-[13px] font-bold">章节目录</div>
-          <div class="mt-1 text-[11px] text-muted" id="sidebarBookName">尚未导入书籍</div>
+          <div class="mt-1 truncate text-[11px] text-muted" id="sidebarBookName">尚未导入书籍</div>
+          <div class="mt-1 text-[11px] text-muted" id="bookWordCount">正文 0 字</div>
         </div>
         <span class="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--accent)]" id="chapterCount">0 章</span>
       </div>
@@ -270,9 +423,10 @@
       <article class="reader-paper" id="readerContent"></article>
     </main>
 
-    <main class="reader-shell scrollbar-thin" id="uploadArea" aria-label="导入书籍">
-      <div class="mx-auto flex min-h-full w-full max-w-[780px] items-center justify-center px-5 py-12 sm:px-8">
-        <div class="empty-grid w-full max-w-[620px] text-center">
+    <main class="reader-shell scrollbar-thin" id="uploadArea" aria-label="首页">
+      <div class="home-content">
+        <section class="home-hero" aria-label="导入书籍">
+          <div class="empty-grid w-full max-w-[620px] text-center">
           <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-[var(--surface)] px-3 py-1.5 text-[11px] font-bold tracking-[.08em] text-[var(--accent)] shadow-sm">
             <span class="h-1.5 w-1.5 rounded-full bg-[var(--warm)]"></span> YOUR PRIVATE LIBRARY
           </div>
@@ -296,11 +450,34 @@
             <span><i class="fa-solid fa-bookmark mr-1.5 text-[var(--accent)]"></i>自动保存进度</span>
             <span><i class="fa-solid fa-eye-slash mr-1.5 text-[var(--accent)]"></i>无需上传</span>
           </div>
-        </div>
+          </div>
+        </section>
+        <section class="history-section" aria-labelledby="historyTitle">
+          <div class="history-heading">
+            <div>
+              <div class="text-[15px] font-bold" id="historyTitle">阅读历史</div>
+          <div class="mt-1 text-[11px] text-muted">从上次停留的章节继续阅读</div>
+            </div>
+            <span class="text-[11px] font-semibold text-muted" id="historyCount">0 本</span>
+          </div>
+          <div class="history-controls">
+            <input class="panel-input" id="historyFilterInput" type="search" placeholder="筛选书名" aria-label="筛选阅读历史">
+            <select class="panel-select" id="historySortSelect" aria-label="历史排序方式">
+              <option value="recent">最近阅读</option>
+              <option value="title">书名</option>
+              <option value="wordCount">全书字数</option>
+            </select>
+          </div>
+          <div class="history-list" id="historyList"></div>
+          <div class="history-empty" id="historyEmpty">
+            <span class="history-empty-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+            <span>导入书籍后，最近阅读的内容会出现在这里。</span>
+          </div>
+        </section>
       </div>
     </main>
 
-    <nav class="bottom-nav" id="pageNav" aria-label="章节翻页">
+    <nav class="bottom-nav reader-only" id="pageNav" aria-label="章节翻页">
       <button class="nav-button" id="scrollTopBtn" type="button" title="回到顶部" aria-label="回到顶部"><i class="fa-solid fa-angles-up"></i><span>顶部</span></button>
       <button class="nav-button" id="prevPageBtn" type="button"><i class="fa-solid fa-arrow-left-long"></i><span>上一章</span></button>
       <button class="nav-button" id="nextPageBtn" type="button"><span>下一章</span><i class="fa-solid fa-arrow-right-long"></i></button>
@@ -311,6 +488,14 @@
       <div class="mb-5 flex items-center justify-between border-b border-line pb-4">
         <div><div class="text-[14px] font-bold">阅读设置</div><div class="mt-1 text-[11px] text-muted">调整到舒服的节奏</div></div>
         <button class="icon-button -mr-2" id="closeSettingsBtn" title="关闭设置" aria-label="关闭设置"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="mb-5">
+        <div class="setting-label">阅读预设</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="setting-option" data-preset="proofread">校对</button>
+          <button class="setting-option active" data-preset="comfortable">舒适</button>
+          <button class="setting-option" data-preset="large">大字</button>
+        </div>
       </div>
       <div class="mb-5">
         <div class="setting-label">文字大小</div>
@@ -332,14 +517,22 @@
       <div class="mb-5">
         <div class="setting-label">字体</div>
         <div class="grid grid-cols-2 gap-2">
-          <button class="setting-option active" data-font="serif">宋体</button><button class="setting-option" data-font="sans">黑体</button>
-          <button class="setting-option" data-font="kai">楷体</button><button class="setting-option" data-font="yuan">圆体</button>
+          <button class="setting-option active" data-font="serif">思源宋体</button><button class="setting-option" data-font="sans">思源黑体</button>
+          <button class="setting-option" data-font="kai">霞鹜文楷</button><button class="setting-option" data-font="yuan">得意黑</button>
         </div>
       </div>
       <div class="mb-5">
         <div class="setting-label">行间距</div>
         <div class="grid grid-cols-3 gap-2">
           <button class="setting-option" data-line="1.7">紧凑</button><button class="setting-option active" data-line="2.05">标准</button><button class="setting-option" data-line="2.4">宽松</button>
+        </div>
+      </div>
+      <div class="border-t border-line pt-5" id="dataTransferSection" hidden>
+        <div class="mb-1 setting-label">应用数据</div>
+        <div class="mb-3 text-[11px] leading-5 text-muted">迁移阅读设置、历史、本地编辑内容和原文件备份。</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="secondary-button px-2" id="exportAppDataBtn" type="button"><i class="fa-solid fa-box-archive"></i><span>导出数据</span></button>
+          <button class="secondary-button px-2" id="importAppDataBtn" type="button"><i class="fa-solid fa-file-import"></i><span>导入数据</span></button>
         </div>
       </div>
       <div id="updateSection" class="border-t border-line pt-5" hidden>
@@ -374,7 +567,7 @@
         <div><div class="text-[14px] font-bold">标点符号替换规则</div><div class="mt-1 text-[11px] text-muted">设置全局替换时要处理的标点</div></div>
         <button class="icon-button -mr-2" id="closeEditorBtn" title="关闭规则面板" aria-label="关闭规则面板"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="editor-note mb-4">这些规则会作用于当前书籍的全部章节，只修改阅读器本地副本，不会改写原始文件。</div>
+      <div class="editor-note mb-4">这些规则会作用于当前书籍的全部章节；TXT 和 Markdown 的替换结果会保存回原文件，并自动保留最近 10 个备份。</div>
       <div class="setting-label">替换规则</div>
       <div class="mb-5 grid grid-cols-2 gap-2">
         <label class="edit-check"><input id="replaceQuotes" type="checkbox" checked><span>引号 “ ”</span></label>
@@ -386,6 +579,84 @@
       <button class="primary-button w-full" id="punctuationReplaceBtn" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i><span>全局替换标点</span></button>
       <button class="secondary-button mt-2 w-full" id="punctuationUndoBtn" type="button" disabled><i class="fa-solid fa-rotate-left"></i><span>撤销上次替换</span></button>
       <div class="editor-result mt-3" id="editorResult" aria-live="polite"></div>
+    </section>
+
+    <section class="backup-panel" id="backupPanel" aria-label="原文件备份">
+      <div class="mb-3 flex items-center justify-between border-b border-line pb-3">
+        <div><div class="text-[14px] font-bold">原文件备份</div><div class="mt-1 text-[11px] text-muted" id="backupSourceName">每次覆盖前会自动保留一个版本</div></div>
+        <button class="icon-button -mr-2" id="closeBackupBtn" title="关闭备份面板" aria-label="关闭备份面板"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="backup-list" id="backupList" aria-live="polite"></div>
+      <div class="backup-empty" id="backupEmpty">还没有可恢复的原文件备份。</div>
+    </section>
+
+    <section class="search-panel" id="searchPanel" aria-label="搜索">
+      <div class="search-panel-header">
+        <div><div class="text-[14px] font-bold">搜索</div><div class="mt-1 text-[11px] text-muted">仅搜索正文</div></div>
+        <button class="icon-button -mr-2" id="closeSearchBtn" title="关闭搜索" aria-label="关闭搜索"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="search-scope" role="group" aria-label="搜索范围">
+        <button class="search-scope-option active" data-search-scope="chapter" type="button" aria-pressed="true">本章搜索</button>
+        <button class="search-scope-option" data-search-scope="book" type="button" aria-pressed="false">全局搜索</button>
+      </div>
+      <div class="search-input-row">
+        <input class="panel-input" id="searchInput" type="search" placeholder="输入要查找的文字" autocomplete="off" aria-label="输入搜索关键词">
+        <button class="search-nav-button" id="searchPreviousBtn" type="button" title="上一个匹配" aria-label="上一个匹配" disabled><i class="fa-solid fa-arrow-up"></i></button>
+        <button class="search-nav-button" id="searchNextBtn" type="button" title="下一个匹配" aria-label="下一个匹配" disabled><i class="fa-solid fa-arrow-down"></i></button>
+      </div>
+      <div class="search-summary" id="searchSummary" aria-live="polite">输入文字后开始搜索。</div>
+      <div class="search-results" id="searchResults"></div>
+    </section>
+
+    <section class="marks-panel" id="marksPanel" aria-label="书签与批注">
+      <div class="mb-4 flex items-center justify-between border-b border-line pb-3">
+        <div><div class="text-[14px] font-bold">书签与批注</div><div class="mt-1 text-[11px] text-muted">随书保存在本机，可从这里回到标记位置</div></div>
+        <button class="icon-button -mr-2" id="closeMarksBtn" title="关闭书签与批注" aria-label="关闭书签与批注"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="mark-editor">
+        <textarea class="note-input" id="markNoteInput" maxlength="500" placeholder="短笔记（可选）" aria-label="书签或批注的短笔记"></textarea>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <button class="secondary-button" id="addBookmarkBtn" type="button"><i class="fa-solid fa-bookmark"></i><span>添加书签</span></button>
+          <button class="primary-button" id="addAnnotationBtn" type="button"><i class="fa-solid fa-highlighter"></i><span>批注选中文字</span></button>
+        </div>
+      </div>
+      <div class="mark-list" id="markList"></div>
+      <div class="panel-empty" id="markEmpty">还没有书签或批注。</div>
+    </section>
+
+    <section class="export-panel" id="exportPanel" aria-label="导出正文">
+      <div class="mb-4 flex items-center justify-between border-b border-line pb-3">
+        <div><div class="text-[14px] font-bold">导出正文</div><div class="mt-1 text-[11px] text-muted">导出的是当前阅读器中的内容，包含已保存的修改</div></div>
+        <button class="icon-button -mr-2" id="closeExportBtn" title="关闭导出正文" aria-label="关闭导出正文"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="mb-4">
+        <div class="setting-label">导出范围</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="setting-option active" id="exportCurrentScopeBtn" data-export-scope="current" type="button">当前章节</button>
+          <button class="setting-option" id="exportBookScopeBtn" data-export-scope="book" type="button">整本书</button>
+        </div>
+      </div>
+      <div class="mb-5">
+        <div class="setting-label">文件格式</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="setting-option active" id="exportTextFormatBtn" data-export-format="text" type="button">TXT</button>
+          <button class="setting-option" id="exportMarkdownFormatBtn" data-export-format="markdown" type="button">Markdown</button>
+        </div>
+      </div>
+      <button class="primary-button w-full" id="confirmExportBtn" type="button"><i class="fa-solid fa-file-arrow-down"></i><span>导出正文</span></button>
+      <div class="search-summary" id="exportSummary"></div>
+    </section>
+
+    <section class="mobile-more-panel" id="mobileMorePanel" aria-label="更多功能">
+      <button class="mobile-more-action" id="mobileSettingsBtn" type="button"><i class="fa-solid fa-sliders w-4 text-center"></i><span>阅读设置</span></button>
+      <button class="mobile-more-action reader-only" id="mobileUpdateFolderBtn" type="button" hidden><i class="fa-solid fa-arrows-rotate w-4 text-center"></i><span>更新章节</span></button>
+      <button class="mobile-more-action reader-only" id="mobileReloadSourceBtn" type="button" hidden><i class="fa-solid fa-rotate w-4 text-center"></i><span>重新载入</span></button>
+      <button class="mobile-more-action reader-only" id="mobileSearchBtn" type="button"><i class="fa-solid fa-magnifying-glass w-4 text-center"></i><span>搜索</span></button>
+      <button class="mobile-more-action reader-only" id="mobileMarksBtn" type="button"><i class="fa-solid fa-bookmark w-4 text-center"></i><span>书签与批注</span></button>
+      <button class="mobile-more-action reader-only" id="mobileExportBtn" type="button"><i class="fa-solid fa-file-export w-4 text-center"></i><span>导出正文</span></button>
+      <button class="mobile-more-action reader-only" id="mobilePunctuationBtn" type="button"><i class="fa-solid fa-wand-magic-sparkles w-4 text-center"></i><span>标点规则</span></button>
+      <button class="mobile-more-action reader-only" id="mobileBackupsBtn" type="button"><i class="fa-solid fa-clock-rotate-left w-4 text-center"></i><span>原文件备份</span></button>
+      <button class="mobile-more-action reader-only" id="mobileShowSourceBtn" type="button"><i class="fa-solid fa-folder-tree w-4 text-center"></i><span>在资源管理器中显示</span></button>
     </section>
 
     <div class="toast" id="copyToast"><i class="fa-solid fa-circle-check"></i><span>已复制到剪贴板</span></div>
@@ -418,11 +689,39 @@
     const pendingDesktopBookPaths = [];
     let updateInfo = null;
 
+    const readingPresets = {
+      proofread: {
+        fontSize: 16,
+        lineHeight: 1.7,
+        fontFamily: 'sans',
+        paperPadding: '52px 58px 94px',
+        paperPaddingMobile: '38px 20px 84px'
+      },
+      comfortable: {
+        fontSize: 18,
+        lineHeight: 2.05,
+        fontFamily: 'serif',
+        paperPadding: '68px 72px 100px',
+        paperPaddingMobile: '43px 26px 90px'
+      },
+      large: {
+        fontSize: 22,
+        lineHeight: 2.35,
+        fontFamily: 'serif',
+        paperPadding: '72px 82px 110px',
+        paperPaddingMobile: '47px 26px 96px'
+      }
+    };
+
     const state = {
       chapters: [], currentChapter: 0, fontSize: 18, lineHeight: 2.05,
       theme: 'default', fontFamily: 'serif', bookTitle: '', demo: false, folderHandle: null,
       punctuationHistory: null, punctuationOptions: null, chapterEdits: {}, directEditing: false, directEditOriginalText: '',
-      sourcePath: '', sourceType: ''
+      sourcePath: '', sourceType: '', sourceDocuments: {}, libraryIdentity: '', sourceAvailable: false, sourceMissing: false,
+      search: { query: '', scope: 'chapter', matches: [], currentIndex: -1 }, marks: [], readingPreset: 'comfortable',
+      readerPaperPadding: readingPresets.comfortable.paperPadding,
+      readerPaperPaddingMobile: readingPresets.comfortable.paperPaddingMobile,
+      exportScope: 'current', exportFormat: 'text'
     };
 
     const $ = (id) => document.getElementById(id);
@@ -440,6 +739,11 @@
     const settingsPanel = $('settingsPanel');
     const importPanel = $('importPanel');
     const editorPanel = $('editorPanel');
+    const backupPanel = $('backupPanel');
+    const searchPanel = $('searchPanel');
+    const marksPanel = $('marksPanel');
+    const exportPanel = $('exportPanel');
+    const mobileMorePanel = $('mobileMorePanel');
     const readerDialog = $('readerDialog');
     const readerDialogTitle = $('readerDialogTitle');
     const readerDialogMessage = $('readerDialogMessage');
@@ -448,10 +752,18 @@
     const dialogSaveBtn = $('dialogSaveBtn');
     const textFilePattern = /\.(txt|md|markdown)$/i;
     const bookFilePattern = /\.(txt|md|markdown|epub|zip)$/i;
+    const maxBookFileBytes = 256 * 1024 * 1024;
+    const maxTextFileBytes = 64 * 1024 * 1024;
+    const maxZipEntries = 5000;
+    const maxZipUncompressedBytes = 512 * 1024 * 1024;
+    const maxEmbeddedImageBytes = 24 * 1024 * 1024;
     const folderDatabaseName = 'quiet-reader-reader';
     const folderStoreName = 'sources';
+    const historyStorageKey = 'reader_history';
+    const historyLimit = 12;
     let folderDatabasePromise;
     let pendingReaderDialogResolve = null;
+    let closeRequestInProgress = false;
 
     function setUpdateButtonLoading(button, loading) {
       button.disabled = loading;
@@ -500,8 +812,10 @@
     async function initializeDesktopStorage() {
       if (!isDesktop) return;
       try {
-        const saved = await desktopApi.getStorage();
+        const storageResult = await desktopApi.getStorage();
+        const saved = storageResult?.data ?? storageResult;
         desktopStorage = saved && typeof saved === 'object' ? saved : {};
+        if (storageResult?.recoveryMessage) showToast(storageResult.recoveryMessage);
       } catch (error) {
         console.error(error);
         showToast('无法读取本地数据，将使用新的阅读记录');
@@ -596,30 +910,50 @@
 
     async function saveLibrarySnapshot() {
       if (!state.chapters.length || state.demo) return;
+      const sourceBacked = isDesktop && Boolean(state.sourcePath) && state.sourceAvailable;
       const snapshot = {
         id: 'last-library',
+        libraryIdentity: state.libraryIdentity,
         bookTitle: state.bookTitle,
         currentChapter: state.currentChapter,
         sourcePath: state.sourcePath,
         sourceType: state.sourceType,
+        sourceAvailable: state.sourceAvailable,
+        sourceMissing: state.sourceMissing,
         punctuationOptions: state.punctuationOptions ? { ...state.punctuationOptions } : null,
         chapterEdits: { ...state.chapterEdits },
-        chapters: state.chapters.map(({ title, content, htmlContent, filename, sourceKey, isMarkdown, isEpubHtml, isCover }) => ({ title, content, htmlContent, filename, sourceKey, isMarkdown, isEpubHtml, isCover }))
+        chapterCount: state.chapters.length,
+        wordCount: getBookWordCount(),
+        chapters: state.chapters.map(({ title, content, htmlContent, filename, sourceKey, sourceDocumentKey, sourceBodyStart, sourceBodyEnd, isMarkdown, isEpubHtml, isCover }) => ({
+          title,
+          ...(sourceBacked ? {} : { content, htmlContent }),
+          filename,
+          sourceKey,
+          sourceDocumentKey,
+          sourceBodyStart,
+          sourceBodyEnd,
+          isMarkdown,
+          isEpubHtml,
+          isCover
+        }))
       };
       if (isDesktop) {
         await setStoredJson('reader_last_library', snapshot, { immediate: true });
+        await saveReadingHistory(snapshot);
         return;
       }
       try { localStorage.setItem('reader_last_library', JSON.stringify(snapshot)); } catch (_) { /* IndexedDB remains the primary store for large libraries */ }
       const database = await openFolderDatabase();
-      if (!database) return;
-      await new Promise((resolve) => {
-        const transaction = database.transaction(folderStoreName, 'readwrite');
-        transaction.objectStore(folderStoreName).put(snapshot);
-        transaction.oncomplete = resolve;
-        transaction.onerror = resolve;
-        transaction.onabort = resolve;
-      });
+      if (database) {
+        await new Promise((resolve) => {
+          const transaction = database.transaction(folderStoreName, 'readwrite');
+          transaction.objectStore(folderStoreName).put(snapshot);
+          transaction.oncomplete = resolve;
+          transaction.onerror = resolve;
+          transaction.onabort = resolve;
+        });
+      }
+      await saveReadingHistory(snapshot);
     }
 
     async function getSavedLibrary() {
@@ -636,13 +970,408 @@
       try { return JSON.parse(localStorage.getItem('reader_last_library') || 'null'); } catch (_) { return null; }
     }
 
+    function hashLibrarySignature(value) {
+      let hash = 2166136261;
+      const text = String(value || '');
+      for (let index = 0; index < text.length; index += 1) {
+        hash ^= text.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return (hash >>> 0).toString(36);
+    }
+
+    function createLibraryIdentity({ sourcePath = '', sourceType = '', bookTitle = '', chapters = [] } = {}) {
+      const normalizedPath = String(sourcePath).trim();
+      if (normalizedPath) return `${sourceType || 'book'}:${normalizedPath.toLowerCase()}`;
+      const chapterSignature = (Array.isArray(chapters) ? chapters : [])
+        .map(chapter => `${chapter?.sourceKey || ''}\u0000${chapter?.filename || ''}\u0000${chapter?.title || ''}\u0000${String(chapter?.content || '').length}`)
+        .join('\u0001');
+      return `local:${bookTitle || 'untitled'}:${hashLibrarySignature(chapterSignature || bookTitle || 'untitled')}`;
+    }
+
+    function getHistoryIdentity(snapshot) {
+      const savedIdentity = String(snapshot?.libraryIdentity || '').trim();
+      if (savedIdentity) return savedIdentity;
+      const sourcePath = String(snapshot?.sourcePath || '').trim();
+      if (sourcePath) return `${snapshot?.sourceType || 'book'}:${sourcePath.toLowerCase()}`;
+      const firstChapter = snapshot?.chapters?.[0];
+      return `local:${snapshot?.bookTitle || 'untitled'}:${firstChapter?.filename || firstChapter?.title || ''}`;
+    }
+
+    function getProgressStorageKey(snapshot = state) {
+      return `reader_progress_${getHistoryIdentity(snapshot)}`;
+    }
+
+    function getLegacyProgressStorageKey(bookTitle = state.bookTitle) {
+      return `reader_${bookTitle || 'untitled'}`;
+    }
+
+    function getSavedProgress(snapshot = state) {
+      const saved = getStoredJson(getProgressStorageKey(snapshot), null);
+      if (saved) return saved;
+      return snapshot?.libraryIdentity ? null : getStoredJson(getLegacyProgressStorageKey(snapshot?.bookTitle), null);
+    }
+
+    function getChapterEditsStorageKey(snapshot = state) {
+      return `reader_edits_${getHistoryIdentity(snapshot)}`;
+    }
+
+    function getMarksStorageKey(snapshot = state) {
+      return `reader_marks_${getHistoryIdentity(snapshot)}`;
+    }
+
+    function loadMarks(snapshot = state) {
+      const saved = getStoredJson(getMarksStorageKey(snapshot), []);
+      if (!Array.isArray(saved)) return [];
+      return saved
+        .filter(mark => mark && typeof mark === 'object' && ['bookmark', 'annotation'].includes(mark.kind) && mark.chapterKey)
+        .map(mark => ({
+          id: String(mark.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+          kind: mark.kind,
+          chapterKey: String(mark.chapterKey),
+          scroll: Math.max(0, Number(mark.scroll) || 0),
+          start: Math.max(0, Number(mark.start) || 0),
+          end: Math.max(0, Number(mark.end) || 0),
+          quote: String(mark.quote || '').slice(0, 1200),
+          note: String(mark.note || '').slice(0, 500),
+          createdAt: Number(mark.createdAt) || Date.now(),
+          updatedAt: Number(mark.updatedAt) || Number(mark.createdAt) || Date.now()
+        }))
+        .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+    }
+
+    function saveMarks() {
+      return setStoredJson(getMarksStorageKey(), state.marks, { immediate: true });
+    }
+
+    function getChapterKey(chapter) {
+      return String(chapter?.sourceKey || `${chapter?.filename || ''}\u0000${chapter?.title || ''}`);
+    }
+
+    function getSnapshotWordCount(snapshot) {
+      if (Number.isFinite(Number(snapshot?.wordCount))) return Math.max(0, Number(snapshot.wordCount));
+      return (snapshot?.chapters || [])
+        .filter(chapter => !chapter?.isCover)
+        .reduce((total, chapter) => total + getWordCount(getChapterBodyContent(chapter), chapter.isMarkdown), 0);
+    }
+
+    function hasRestorableSnapshotContent(snapshot) {
+      return Array.isArray(snapshot?.chapters) && snapshot.chapters.some(chapter => (
+        Object.prototype.hasOwnProperty.call(chapter || {}, 'content') ||
+        Object.prototype.hasOwnProperty.call(chapter || {}, 'htmlContent')
+      ));
+    }
+
+    function makeHistoryEntry(snapshot) {
+      const chapterCount = Number.isFinite(Number(snapshot?.chapterCount))
+        ? Math.max(0, Number(snapshot.chapterCount))
+        : (Array.isArray(snapshot?.chapters) ? snapshot.chapters.length : 0);
+      return {
+        id: getHistoryIdentity(snapshot),
+        libraryIdentity: getHistoryIdentity(snapshot),
+        bookTitle: snapshot?.bookTitle || '未命名书籍',
+        sourcePath: snapshot?.sourcePath || '',
+        sourceType: snapshot?.sourceType || '',
+        punctuationOptions: snapshot?.punctuationOptions ? { ...snapshot.punctuationOptions } : null,
+        pinned: Boolean(snapshot?.pinned),
+        sourceMissing: Boolean(snapshot?.sourceMissing),
+        currentChapter: Math.max(0, Math.min(Number(snapshot?.currentChapter) || 0, Math.max(0, chapterCount - 1))),
+        chapterCount,
+        wordCount: getSnapshotWordCount(snapshot),
+        lastOpenedAt: Date.now(),
+        snapshot: snapshot?.sourcePath && snapshot?.sourceAvailable !== false ? null : snapshot
+      };
+    }
+
+    function normalizeHistory(rawHistory) {
+      if (!Array.isArray(rawHistory)) return [];
+      const entries = rawHistory
+        .filter(item => item && typeof item === 'object' && item.bookTitle)
+        .map(item => ({ ...item, pinned: Boolean(item.pinned), sourceMissing: Boolean(item.sourceMissing) }));
+      const pinned = entries
+        .filter(item => item.pinned)
+        .sort((a, b) => Number(b.lastOpenedAt || 0) - Number(a.lastOpenedAt || 0));
+      const regular = entries
+        .filter(item => !item.pinned)
+        .sort((a, b) => Number(b.lastOpenedAt || 0) - Number(a.lastOpenedAt || 0))
+        .slice(0, Math.max(0, historyLimit - pinned.length));
+      return [...pinned, ...regular];
+    }
+
+    async function getReadingHistory() {
+      const storedHistory = getStoredJson(historyStorageKey, null);
+      if (Array.isArray(storedHistory)) return normalizeHistory(storedHistory);
+      const snapshot = await getSavedLibrary();
+      if (!snapshot?.chapters?.length) return [];
+      const migrated = [makeHistoryEntry(snapshot)];
+      await setStoredJson(historyStorageKey, migrated, { immediate: true });
+      return migrated;
+    }
+
+    async function saveReadingHistory(snapshot) {
+      const entry = makeHistoryEntry(snapshot);
+      const history = await getReadingHistory();
+      const previous = history.find(item => item.id === entry.id);
+      entry.pinned = Boolean(previous?.pinned);
+      entry.sourceMissing = Boolean(snapshot?.sourceMissing);
+      const next = normalizeHistory([entry, ...history.filter(item => item.id !== entry.id)]);
+      await setStoredJson(historyStorageKey, next, { immediate: true });
+      if (document.body.classList.contains('home-mode')) renderReadingHistory();
+    }
+
+    async function deleteHistoryEntry(id) {
+      const history = normalizeHistory(getStoredJson(historyStorageKey, []));
+      const next = history.filter(entry => entry.id !== id);
+      await setStoredJson(historyStorageKey, next, { immediate: true });
+      await renderReadingHistory();
+      showToast('已从阅读历史移除');
+    }
+
+    async function updateHistoryEntry(id, updater) {
+      const history = normalizeHistory(getStoredJson(historyStorageKey, []));
+      const index = history.findIndex(entry => entry.id === id);
+      if (index < 0) return null;
+      const nextEntry = typeof updater === 'function' ? updater({ ...history[index] }) : history[index];
+      if (!nextEntry) return null;
+      history[index] = nextEntry;
+      const next = normalizeHistory(history);
+      await setStoredJson(historyStorageKey, next, { immediate: true });
+      return next.find(entry => entry.id === nextEntry.id) || nextEntry;
+    }
+
+    async function toggleHistoryPinned(id) {
+      const entry = await updateHistoryEntry(id, value => ({ ...value, pinned: !value.pinned }));
+      if (!entry) return;
+      await renderReadingHistory();
+      showToast(entry.pinned ? '已置顶这本书' : '已取消置顶');
+    }
+
+    function getHistoryProgress(entry) {
+      const saved = getSavedProgress(entry);
+      const maxChapter = Math.max(0, Number(entry.chapterCount || 1) - 1);
+      const chapter = Number.isInteger(saved?.chapter)
+        ? Math.max(0, Math.min(saved.chapter, maxChapter))
+        : Math.max(0, Math.min(Number(entry.currentChapter) || 0, maxChapter));
+      return { chapter, scroll: Number(saved?.scroll) || 0 };
+    }
+
+    function getHistorySourceLabel(entry) {
+      if (entry.sourceType === 'folder') return '章节文件夹';
+      if (entry.sourceType === 'book') return '书籍文件';
+      return '本地导入';
+    }
+
+    function formatHistoryTime(timestamp) {
+      if (!timestamp) return '最近阅读';
+      try {
+        return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp));
+      } catch (_) {
+        return '最近阅读';
+      }
+    }
+
+    async function renderReadingHistory() {
+      const list = $('historyList');
+      const empty = $('historyEmpty');
+      if (!list || !empty) return;
+      const history = await getReadingHistory();
+      const filter = String($('historyFilterInput')?.value || '').trim().toLocaleLowerCase('zh-CN');
+      const sort = $('historySortSelect')?.value || 'recent';
+      const visibleHistory = history
+        .filter(entry => !filter || String(entry.bookTitle || '').toLocaleLowerCase('zh-CN').includes(filter))
+        .sort((a, b) => {
+          if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+          if (sort === 'title') return String(a.bookTitle || '').localeCompare(String(b.bookTitle || ''), 'zh-CN');
+          if (sort === 'wordCount') return Number(b.wordCount || 0) - Number(a.wordCount || 0) || Number(b.lastOpenedAt || 0) - Number(a.lastOpenedAt || 0);
+          return Number(b.lastOpenedAt || 0) - Number(a.lastOpenedAt || 0);
+        });
+      list.innerHTML = '';
+      $('historyCount').textContent = `${history.length} 本`;
+      empty.hidden = visibleHistory.length > 0;
+      empty.querySelector('span:last-child').textContent = history.length && !visibleHistory.length
+        ? '没有符合筛选条件的阅读记录。'
+        : '导入书籍后，最近阅读的内容会出现在这里。';
+      visibleHistory.forEach(entry => {
+        const progress = getHistoryProgress(entry);
+        const item = document.createElement('article');
+        item.className = `history-item${entry.sourceMissing ? ' missing' : ''}`;
+        const openButton = document.createElement('button');
+        openButton.type = 'button';
+        openButton.className = 'history-open';
+        openButton.title = `继续阅读《${entry.bookTitle}》`;
+        openButton.innerHTML = `
+          <span class="history-item-icon"><i class="fa-solid ${entry.sourceType === 'folder' ? 'fa-folder-open' : 'fa-book-open'}"></i></span>
+          <span class="min-w-0">
+            <span class="history-item-title">${escapeHtml(entry.bookTitle)}</span>
+            <span class="history-item-meta"><span>${getHistorySourceLabel(entry)}</span><span>${formatNumber(entry.chapterCount)} 章</span><span>正文 ${formatNumber(entry.wordCount)} 字</span><span>第 ${progress.chapter + 1} 章</span>${entry.sourceMissing ? '<span class="history-missing">原文件未找到</span>' : ''}<span>${formatHistoryTime(entry.lastOpenedAt)}</span></span>
+          </span>
+          <span class="history-item-action">继续阅读 <i class="fa-solid fa-arrow-right-long"></i></span>`;
+        openButton.addEventListener('click', () => loadHistoryEntry(entry));
+
+        const pinButton = document.createElement('button');
+        pinButton.type = 'button';
+        pinButton.className = `history-pin${entry.pinned ? ' active' : ''}`;
+        pinButton.title = entry.pinned ? '取消置顶' : '置顶到最前';
+        pinButton.setAttribute('aria-label', `${entry.pinned ? '取消置顶' : '置顶'}《${entry.bookTitle}》`);
+        pinButton.innerHTML = `<i class="fa-solid fa-thumbtack"></i>`;
+        pinButton.addEventListener('click', () => toggleHistoryPinned(entry.id));
+
+        const relinkButton = document.createElement('button');
+        relinkButton.type = 'button';
+        relinkButton.className = 'history-relink';
+        relinkButton.title = '重新关联原文件';
+        relinkButton.setAttribute('aria-label', `重新关联《${entry.bookTitle}》的原文件`);
+        relinkButton.innerHTML = '<i class="fa-solid fa-link"></i>';
+        relinkButton.hidden = !entry.sourceMissing || !isDesktop;
+        relinkButton.addEventListener('click', () => relinkHistoryEntry(entry));
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'history-remove';
+        removeButton.title = `从阅读历史移除《${entry.bookTitle}》`;
+        removeButton.setAttribute('aria-label', `从阅读历史移除《${entry.bookTitle}》`);
+        removeButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        removeButton.addEventListener('click', () => deleteHistoryEntry(entry.id));
+
+        item.append(openButton, pinButton, relinkButton, removeButton);
+        list.appendChild(item);
+      });
+    }
+
+    function copyStoredValue(fromKey, toKey) {
+      if (!fromKey || !toKey || fromKey === toKey) return Promise.resolve();
+      if (isDesktop) {
+        return Object.prototype.hasOwnProperty.call(desktopStorage, fromKey)
+          ? setStoredJson(toKey, desktopStorage[fromKey], { immediate: true })
+          : Promise.resolve();
+      }
+      try {
+        const value = localStorage.getItem(fromKey);
+        if (value !== null) localStorage.setItem(toKey, value);
+      } catch (_) { /* Browser storage can be unavailable. */ }
+      return Promise.resolve();
+    }
+
+    async function relinkHistoryEntry(entry) {
+      if (!isDesktop || !entry) return;
+      const oldIdentity = getHistoryIdentity(entry);
+      const oldProgress = getSavedProgress(entry);
+      const path = entry.sourceType === 'folder'
+        ? await desktopApi.chooseFolder()
+        : await desktopApi.chooseBook();
+      if (!path) return;
+      const loaded = entry.sourceType === 'folder'
+        ? await loadFromDesktopFolder(path, { restoring: true, skipProgressRestore: true })
+        : await loadDesktopBookPath(path, { restoring: true, skipProgressRestore: true });
+      if (!loaded) return;
+      const newIdentity = getHistoryIdentity(state);
+      await Promise.all([
+        copyStoredValue(`reader_progress_${oldIdentity}`, `reader_progress_${newIdentity}`),
+        copyStoredValue(`reader_edits_${oldIdentity}`, `reader_edits_${newIdentity}`),
+        copyStoredValue(`reader_marks_${oldIdentity}`, `reader_marks_${newIdentity}`)
+      ]);
+      state.marks = loadMarks();
+      const progress = oldProgress || { chapter: entry.currentChapter, scroll: 0 };
+      const targetChapter = Math.max(0, Math.min(Number(progress.chapter) || 0, state.chapters.length - 1));
+      const targetScroll = Math.max(0, Number(progress.scroll) || 0);
+      renderChapter(targetChapter, { saveProgress: false });
+      await setStoredJson(getProgressStorageKey(), { chapter: targetChapter, scroll: targetScroll }, { immediate: true });
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      readerContainer.scrollTop = targetScroll;
+      await setStoredJson(getProgressStorageKey(), { chapter: targetChapter, scroll: readerContainer.scrollTop }, { immediate: true });
+      const history = normalizeHistory(getStoredJson(historyStorageKey, []));
+      const nextEntry = {
+        ...entry,
+        id: newIdentity,
+        libraryIdentity: newIdentity,
+        bookTitle: state.bookTitle,
+        sourcePath: state.sourcePath,
+        sourceType: state.sourceType,
+        sourceMissing: false,
+        chapterCount: state.chapters.length,
+        wordCount: getBookWordCount(),
+        currentChapter: targetChapter,
+        lastOpenedAt: Date.now(),
+        snapshot: null
+      };
+      await setStoredJson(historyStorageKey, normalizeHistory([nextEntry, ...history.filter(item => item.id !== entry.id && item.id !== newIdentity)]), { immediate: true });
+      await saveLibrarySnapshot();
+      showToast('已重新关联原文件，并保留阅读进度与标记');
+    }
+
     function setFolderSource(handle) {
       state.folderHandle = handle || null;
       const canUpdate = isDesktop ? state.sourceType === 'folder' && Boolean(state.sourcePath) : (Boolean(handle) || state.chapters.length > 0);
       $('updateFolderBtn').classList.toggle('show', !state.demo && canUpdate);
+      const canReload = isDesktop && !state.demo && state.sourceType === 'book' && Boolean(state.sourcePath);
+      $('reloadSourceBtn').classList.toggle('show', canReload);
       const canUseSource = isDesktop && !state.demo && Boolean(state.sourcePath);
-      $('reloadSourceBtn').classList.toggle('show', canUseSource);
       $('showSourceBtn').classList.toggle('show', canUseSource);
+      $('sourceBackupBtn').classList.toggle('show', Boolean(getSourceBackupRequest()));
+      syncMobileMoreActions();
+    }
+
+    function syncMobileMoreActions() {
+      const canUpdate = isDesktop
+        ? state.sourceType === 'folder' && Boolean(state.sourcePath)
+        : Boolean(state.folderHandle || state.chapters.length);
+      const canReload = isDesktop && !state.demo && state.sourceType === 'book' && Boolean(state.sourcePath);
+      const canUseSource = isDesktop && !state.demo && Boolean(state.sourcePath);
+      const canRestoreBackups = Boolean(getSourceBackupRequest());
+      $('mobileUpdateFolderBtn').hidden = state.demo || !canUpdate;
+      $('mobileReloadSourceBtn').hidden = !canReload;
+      $('mobileBackupsBtn').hidden = !canRestoreBackups;
+      $('mobileShowSourceBtn').hidden = !canUseSource;
+    }
+
+    function closeFloatingPanels(except = '') {
+      const panels = {
+        settings: settingsPanel,
+        import: importPanel,
+        editor: editorPanel,
+        backup: backupPanel,
+        search: searchPanel,
+        marks: marksPanel,
+        export: exportPanel,
+        more: mobileMorePanel
+      };
+      Object.entries(panels).forEach(([name, panel]) => {
+        if (name !== except) panel.classList.remove('show');
+      });
+      if (except !== 'import') $('openImportBtn').setAttribute('aria-expanded', 'false');
+      if (except !== 'more') $('mobileMoreBtn').setAttribute('aria-expanded', 'false');
+    }
+
+    function openFloatingPanel(name, focusTarget = null) {
+      const panels = {
+        settings: settingsPanel,
+        import: importPanel,
+        editor: editorPanel,
+        backup: backupPanel,
+        search: searchPanel,
+        marks: marksPanel,
+        export: exportPanel,
+        more: mobileMorePanel
+      };
+      const panel = panels[name];
+      if (!panel) return false;
+      const show = !panel.classList.contains('show');
+      closeFloatingPanels(show ? name : '');
+      panel.classList.toggle('show', show);
+      if (name === 'import') $('openImportBtn').setAttribute('aria-expanded', String(show));
+      if (name === 'more') $('mobileMoreBtn').setAttribute('aria-expanded', String(show));
+      if (show && focusTarget) requestAnimationFrame(() => focusTarget.focus());
+      return show;
+    }
+
+    function toggleMobileMorePanel(force) {
+      const show = typeof force === 'boolean' ? force : !mobileMorePanel.classList.contains('show');
+      if (show) {
+        closeFloatingPanels('more');
+        syncMobileMoreActions();
+      }
+      mobileMorePanel.classList.toggle('show', show);
+      $('mobileMoreBtn').setAttribute('aria-expanded', String(show));
     }
 
     async function requestFolderPermission(handle, allowRequest) {
@@ -701,8 +1430,7 @@
     function toggleImportPanel(force) {
       const show = typeof force === 'boolean' ? force : !importPanel.classList.contains('show');
       if (show) {
-        settingsPanel.classList.remove('show');
-        editorPanel.classList.remove('show');
+        closeFloatingPanels('import');
       }
       importPanel.classList.toggle('show', show);
       $('openImportBtn').setAttribute('aria-expanded', String(show));
@@ -745,18 +1473,21 @@
 
     function nativeFileFromResult(result) {
       if (!result || !result.name || !result.bytes) throw new Error('无法读取所选文件');
-      return new File([result.bytes], result.name, { type: result.type || 'application/octet-stream' });
+      const file = new File([result.bytes], result.name, { type: result.type || 'application/octet-stream' });
+      file.readerEncoding = result.encoding || '';
+      file.readerBom = Boolean(result.bom);
+      return file;
     }
 
-    async function loadDesktopBookPath(filePath) {
+    async function loadDesktopBookPath(filePath, options = {}) {
       if (!isDesktop || !filePath) return false;
       try {
         const result = await desktopApi.readBook(filePath);
-        await loadBookFile(nativeFileFromResult(result), {
+        return await loadBookFile(nativeFileFromResult(result), {
+          ...options,
           sourcePath: result.path || filePath,
           sourceType: 'book'
         });
-        return true;
       } catch (error) {
         console.error(error);
         showToast(error?.message || '读取书籍失败，请检查文件是否仍然存在');
@@ -809,6 +1540,72 @@
       }
     }
 
+    function getSourceBackupRequest() {
+      const chapter = state.chapters[state.currentChapter];
+      if (!isDesktop || !desktopApi?.listSourceBackups || !canSaveChapterToSource(chapter)) return null;
+      const request = { sourcePath: state.sourcePath, sourceType: state.sourceType };
+      if (state.sourceType === 'folder') request.relativePath = getChapterSourceDocumentKey(chapter);
+      return request;
+    }
+
+    function formatBackupSize(size) {
+      const bytes = Math.max(0, Number(size) || 0);
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    function formatBackupTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '时间未知';
+      return date.toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    async function openSourceBackups() {
+      const request = getSourceBackupRequest();
+      if (!request) { showToast('当前内容没有可恢复的原文件备份'); return; }
+      closeFloatingPanels('backup');
+      backupPanel.classList.add('show');
+      $('backupSourceName').textContent = state.sourceType === 'folder'
+        ? `当前文件：${request.relativePath}`
+        : `当前文件：${state.sourcePath.split(/[\\/]/).pop() || state.bookTitle}`;
+      const list = $('backupList');
+      const empty = $('backupEmpty');
+      list.replaceChildren();
+      empty.hidden = false;
+      empty.textContent = '正在读取可恢复的原文件备份...';
+      try {
+        const backups = await desktopApi.listSourceBackups(request);
+        list.replaceChildren();
+        empty.hidden = backups.length > 0;
+        empty.textContent = '还没有可恢复的原文件备份。';
+        backups.forEach(backup => {
+          const item = document.createElement('article');
+          item.className = 'backup-item';
+          const details = document.createElement('div');
+          details.className = 'min-w-0';
+          const time = document.createElement('div');
+          time.className = 'backup-item-time';
+          time.textContent = formatBackupTime(backup.createdAt);
+          const meta = document.createElement('div');
+          meta.className = 'backup-item-meta';
+          meta.textContent = `${formatBackupSize(backup.size)}${backup.encoding ? ` · ${backup.encoding.toUpperCase()}` : ''}`;
+          details.append(time, meta);
+          const restore = document.createElement('button');
+          restore.type = 'button';
+          restore.className = 'secondary-button';
+          restore.textContent = '恢复';
+          restore.addEventListener('click', () => restoreSourceBackup(backup));
+          item.append(details, restore);
+          list.appendChild(item);
+        });
+      } catch (error) {
+        console.error(error);
+        empty.hidden = false;
+        empty.textContent = error?.message || '读取原文件备份失败。';
+      }
+    }
+
     function normalizeFileItems(files, pattern = textFilePattern) {
       return Array.from(files)
         .filter(file => pattern.test(file.name))
@@ -821,8 +1618,14 @@
     }
 
     function getWordCount(text, isMarkdown = false) {
-      const readable = isMarkdown ? markdownToPlainText(getChapterBodyContent({ content: text, isMarkdown: true })) : text;
+      const readable = isMarkdown ? markdownToPlainText(String(text || '')) : String(text || '');
       return readable.trim().replace(/\s+/g, '').length;
+    }
+
+    function getBookWordCount() {
+      return state.chapters
+        .filter(chapter => !chapter.isCover)
+        .reduce((total, chapter) => total + getWordCount(getChapterBodyContent(chapter), chapter.isMarkdown), 0);
     }
 
     function markdownToPlainText(text) {
@@ -901,7 +1704,9 @@
     function normalizeChapters(chapters, options) {
       if (!options || !Object.values(options).some(Boolean)) return chapters;
       return chapters.map(chapter => {
-        const titleResult = normalizePunctuation(chapter.title, options);
+        const titleResult = canSaveChapterToSource(chapter)
+          ? { text: chapter.title, changes: 0 }
+          : normalizePunctuation(chapter.title, options);
         const htmlResult = chapter.isEpubHtml ? normalizeHtmlPunctuation(chapter.htmlContent, options) : null;
         const contentResult = chapter.isEpubHtml
           ? { text: getEpubHtmlText(htmlResult.html), changes: 0 }
@@ -923,15 +1728,20 @@
       return chapter.sourceKey || `${chapter.filename || ''}\u0000${chapter.title || ''}`;
     }
 
-    function loadChapterEdits(bookTitle) {
+    function loadChapterEdits(bookTitle, snapshot = state) {
       if (!bookTitle) return {};
-      const saved = getStoredJson(`reader_edits_${bookTitle}`, {});
-      return saved && typeof saved === 'object' ? saved : {};
+      const saved = getStoredJson(getChapterEditsStorageKey(snapshot), null);
+      if (saved && typeof saved === 'object') return saved;
+
+      const legacy = getStoredJson(`reader_edits_${bookTitle}`, null);
+      if (!legacy || typeof legacy !== 'object') return {};
+      setStoredJson(getChapterEditsStorageKey(snapshot), legacy, { immediate: true });
+      return legacy;
     }
 
     function saveChapterEdits() {
       if (!state.bookTitle || state.demo) return;
-      setStoredJson(`reader_edits_${state.bookTitle}`, state.chapterEdits);
+      setStoredJson(getChapterEditsStorageKey(), state.chapterEdits);
     }
 
     function applyChapterEdits(chapters) {
@@ -960,6 +1770,97 @@
       });
     }
 
+    function getSourceWriteTargets() {
+      const documents = new Map();
+      state.chapters.forEach(chapter => {
+        if (!canSaveChapterToSource(chapter)) return;
+        const sourceKey = getChapterSourceDocumentKey(chapter);
+        const sourceDocument = state.sourceDocuments[sourceKey];
+        if (!sourceDocument || documents.has(sourceKey)) return;
+        documents.set(sourceKey, { relativePath: sourceKey, sourceDocument });
+      });
+      return Array.from(documents.values()).map(({ relativePath, sourceDocument }) => ({
+        relativePath,
+        content: sourceDocument.content,
+        encoding: sourceDocument.encoding || '',
+        bom: Boolean(sourceDocument.bom)
+      }));
+    }
+
+    async function saveAllSourceDocuments() {
+      const files = getSourceWriteTargets();
+      if (!files.length) return 0;
+      await desktopApi.writeSourceFiles({ sourcePath: state.sourcePath, sourceType: state.sourceType, files });
+      return files.length;
+    }
+
+    function getChapterSourceDocumentKey(chapter) {
+      return String(chapter?.sourceDocumentKey || chapter?.filename || '');
+    }
+
+    function canSaveChapterToSource(chapter) {
+      if (!isDesktop || !desktopApi?.writeSourceFiles || !chapter || chapter.isEpubHtml) return false;
+      if (!['book', 'folder'].includes(state.sourceType) || !state.sourcePath || !textFilePattern.test(chapter.filename || '')) return false;
+      const sourceKey = getChapterSourceDocumentKey(chapter);
+      const sourceDocument = state.sourceDocuments[sourceKey];
+      return Boolean(sourceDocument && typeof sourceDocument.content === 'string' && Number.isInteger(chapter.sourceBodyStart) && Number.isInteger(chapter.sourceBodyEnd));
+    }
+
+    function getSourceSaveNotice(chapter) {
+      if (chapter?.isEpubHtml || /\.(epub|zip)$/i.test(chapter?.filename || state.sourcePath || '')) return 'EPUB 和 ZIP 为避免破坏原排版，仅保存到阅读器本地副本。';
+      if (isDesktop && state.sourcePath) return '未找到原文件的可写正文范围，仅保存到阅读器本地副本。';
+      return '当前环境不支持覆盖原文件，已保存到阅读器本地副本。';
+    }
+
+    function buildSourceDocumentUpdate(chapter, content) {
+      const sourceKey = getChapterSourceDocumentKey(chapter);
+      const sourceDocument = state.sourceDocuments[sourceKey];
+      const bodyStart = Number(chapter.sourceBodyStart);
+      const bodyEnd = Number(chapter.sourceBodyEnd);
+      if (!sourceDocument || !Number.isInteger(bodyStart) || !Number.isInteger(bodyEnd) || bodyStart < 0 || bodyEnd < bodyStart || bodyEnd > sourceDocument.content.length) {
+        throw new Error('无法定位本章在原文件中的正文范围，请重新载入原文件后再保存');
+      }
+
+      const previousBody = sourceDocument.content.slice(bodyStart, bodyEnd);
+      const leadingSpace = previousBody.match(/^\s*/)?.[0] || '';
+      const trailingSpace = previousBody.match(/\s*$/)?.[0] || '';
+      const replacement = `${leadingSpace}${content}${trailingSpace}`;
+      return {
+        sourceKey,
+        sourceDocument,
+        bodyStart,
+        bodyEnd,
+        replacement,
+        content: `${sourceDocument.content.slice(0, bodyStart)}${replacement}${sourceDocument.content.slice(bodyEnd)}`
+      };
+    }
+
+    function applySourceDocumentUpdate(chapter, content, update) {
+      const previousEnd = update.bodyEnd;
+      const delta = update.replacement.length - (update.bodyEnd - update.bodyStart);
+      update.sourceDocument.content = update.content;
+      state.chapters.forEach(item => {
+        if (getChapterSourceDocumentKey(item) !== update.sourceKey) return;
+        if (item === chapter) {
+          item.content = content;
+          item.sourceBodyEnd = update.bodyStart + update.replacement.length;
+          return;
+        }
+        if (Number.isInteger(item.sourceBodyStart) && item.sourceBodyStart >= previousEnd) item.sourceBodyStart += delta;
+        if (Number.isInteger(item.sourceBodyEnd) && item.sourceBodyEnd >= previousEnd) item.sourceBodyEnd += delta;
+      });
+    }
+
+    async function saveChapterToSource(chapter, content) {
+      const update = buildSourceDocumentUpdate(chapter, content);
+      await desktopApi.writeSourceFiles({
+        sourcePath: state.sourcePath,
+        sourceType: state.sourceType,
+        files: [{ relativePath: update.sourceKey, content: update.content, encoding: update.sourceDocument.encoding || '', bom: Boolean(update.sourceDocument.bom) }]
+      });
+      applySourceDocumentUpdate(chapter, content, update);
+    }
+
     function getEditableChapterBody() {
       return readerContent.querySelector('.chapter-body');
     }
@@ -980,14 +1881,28 @@
     function setDirectEditing(enabled) {
       const body = getEditableChapterBody();
       if (!body) return;
+      const chapter = state.chapters[state.currentChapter];
+      const previousScroll = readerContainer.scrollTop;
       state.directEditing = enabled;
       body.contentEditable = enabled ? 'true' : 'false';
       body.classList.toggle('direct-editing', enabled);
+      body.classList.remove('raw-markdown');
       updateEditorButton();
       if (enabled) {
+        if (chapter?.isMarkdown && !chapter.isEpubHtml) {
+          body.textContent = getChapterBodyContent(chapter);
+          body.classList.add('raw-markdown');
+        }
         state.directEditOriginalText = getDirectEditSnapshot();
-        body.focus();
-        updateEditorResult('正文已进入编辑模式，修改完成后点击“退出编辑”。');
+        try {
+          body.focus({ preventScroll: true });
+        } catch {
+          body.focus();
+        }
+        requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
+        updateEditorResult(canSaveChapterToSource(state.chapters[state.currentChapter])
+          ? '正文已进入编辑模式，保存后会直接覆盖原文件。'
+          : getSourceSaveNotice(state.chapters[state.currentChapter]));
         showToast('已进入正文编辑模式');
       } else {
         updateEditorResult('');
@@ -996,7 +1911,10 @@
 
     function getDirectEditContent() {
       const body = getEditableChapterBody();
-      return body ? body.innerText.replace(/^\uFEFF/, '').trim() : '';
+      const chapter = state.chapters[state.currentChapter];
+      if (!body) return '';
+      const text = (chapter?.isMarkdown ? body.textContent : body.innerText).replace(/^\uFEFF/, '');
+      return chapter?.isMarkdown ? text : text.trim();
     }
 
     function getDirectEditSnapshot() {
@@ -1023,27 +1941,125 @@
         : '切换内容前要如何处理当前修改？';
       dialogSaveBtn.querySelector('span').textContent = isExit ? '保存并退出' : '保存并继续';
       dialogDiscardBtn.textContent = isExit ? '放弃修改' : '放弃并继续';
+      dialogKeepEditingBtn.hidden = false;
+      dialogKeepEditingBtn.textContent = '继续编辑';
+      dialogDiscardBtn.hidden = false;
       readerDialog.classList.add('show');
       readerDialog.setAttribute('aria-hidden', 'false');
       dialogSaveBtn.focus();
       return new Promise(resolve => { pendingReaderDialogResolve = resolve; });
     }
 
+    function askSourceBackupRestore() {
+      readerDialogTitle.textContent = '恢复原文件备份';
+      readerDialogMessage.textContent = '将用选中的备份覆盖当前原文件。恢复前，当前版本会先自动备份。';
+      dialogKeepEditingBtn.hidden = false;
+      dialogKeepEditingBtn.textContent = '取消';
+      dialogDiscardBtn.hidden = true;
+      dialogSaveBtn.querySelector('span').textContent = '恢复备份';
+      readerDialog.classList.add('show');
+      readerDialog.setAttribute('aria-hidden', 'false');
+      dialogSaveBtn.focus();
+      return new Promise(resolve => { pendingReaderDialogResolve = resolve; });
+    }
+
+    function askAppDataImport() {
+      readerDialogTitle.textContent = '导入应用数据';
+      readerDialogMessage.textContent = '导入后会覆盖当前阅读设置、阅读历史、本地编辑内容和原文件备份。';
+      dialogKeepEditingBtn.hidden = true;
+      dialogDiscardBtn.hidden = false;
+      dialogDiscardBtn.textContent = '取消';
+      dialogSaveBtn.querySelector('span').textContent = '选择备份并导入';
+      readerDialog.classList.add('show');
+      readerDialog.setAttribute('aria-hidden', 'false');
+      dialogSaveBtn.focus();
+      return new Promise(resolve => { pendingReaderDialogResolve = resolve; });
+    }
+
+    async function restoreSourceBackup(backup) {
+      const request = getSourceBackupRequest();
+      if (!request || !desktopApi?.restoreSourceBackup) { showToast('当前内容无法恢复原文件备份'); return; }
+      if (hasUnsavedDirectEdit()) {
+        const action = await askUnsavedAction('switch');
+        if (action === 'keep') return;
+        if (action === 'save' && !(await saveDirectEdit(false))) return;
+        setDirectEditing(false);
+        renderChapter(state.currentChapter);
+      }
+      const action = await askSourceBackupRestore();
+      if (action !== 'save') return;
+      try {
+        await desktopApi.restoreSourceBackup({ ...request, backupFile: backup.backupFile });
+        backupPanel.classList.remove('show');
+        const reloaded = await reloadSource();
+        if (reloaded !== false) showToast('已恢复原文件备份，并自动重新载入');
+      } catch (error) {
+        console.error(error);
+        showToast(error?.message || '恢复原文件备份失败');
+      }
+    }
+
+    function hasUnsavedDirectEdit() {
+      return state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText;
+    }
+
+    async function handleCloseRequest() {
+      if (closeRequestInProgress || pendingReaderDialogResolve) return true;
+      if (!hasUnsavedDirectEdit()) {
+        closeRequestInProgress = true;
+        desktopApi?.confirmClose?.();
+        return true;
+      }
+      const action = await askUnsavedAction('exit');
+      if (action === 'keep') return true;
+      if (action === 'save' && !(await saveDirectEdit(false))) return true;
+      closeRequestInProgress = true;
+      desktopApi?.confirmClose?.();
+      return true;
+    }
+
     async function saveDirectEdit(showMessage = true) {
       const chapter = state.chapters[state.currentChapter];
-      if (!chapter) return;
+      if (!chapter) return false;
       const content = getDirectEditContent();
-      chapter.content = content;
+      const canSaveToSource = canSaveChapterToSource(chapter);
+      if (canSaveToSource) {
+        try {
+          await saveChapterToSource(chapter, content);
+          delete state.chapterEdits[getChapterSourceKey(chapter)];
+        } catch (error) {
+          console.error(error);
+          updateEditorResult(error?.message || '保存原文件失败，请检查文件是否被其他程序占用。');
+          showToast('原文件保存失败，正文仍保持编辑状态');
+          return false;
+        }
+      } else {
+        chapter.content = content;
+      }
       if (chapter.isEpubHtml) {
         chapter.htmlContent = sanitizeEpubHtml(getEditableChapterBody()?.innerHTML || '');
         state.chapterEdits[getChapterSourceKey(chapter)] = { content, htmlContent: chapter.htmlContent };
-      } else {
+      } else if (!canSaveToSource) {
         state.chapterEdits[getChapterSourceKey(chapter)] = content;
       }
       state.directEditOriginalText = getDirectEditSnapshot();
       saveChapterEdits();
+      renderChapterList();
+      if (state.search.query) refreshSearchIndex(state.search.query);
+      renderMarks();
       await saveLibrarySnapshot();
-      if (showMessage) showToast('正文修改已保存');
+      if (showMessage) showToast(canSaveToSource ? '正文已保存到原文件' : getSourceSaveNotice(chapter));
+      return true;
+    }
+
+    async function saveAndExitDirectEditing() {
+      if (!state.directEditing || !(await saveDirectEdit(false))) return false;
+      const currentScroll = readerContainer.scrollTop;
+      setDirectEditing(false);
+      renderChapter(state.currentChapter, { saveProgress: false });
+      requestAnimationFrame(() => { readerContainer.scrollTop = currentScroll; });
+      showToast('正文已保存并退出编辑');
+      return true;
     }
 
     async function exitDirectEditing() {
@@ -1054,7 +2070,7 @@
       if (hasChanges) {
         action = await askUnsavedAction('exit');
         if (action === 'keep') return false;
-        if (action === 'save') await saveDirectEdit(false);
+        if (action === 'save' && !(await saveDirectEdit(false))) return false;
       }
       const currentScroll = readerContainer.scrollTop;
       setDirectEditing(false);
@@ -1072,16 +2088,19 @@
       if (!state.chapters.length || state.demo) { updateEditorResult('请先导入真实书籍，再进行文本编辑。'); return; }
       const options = getPunctuationOptions();
       if (!Object.values(options).some(Boolean)) { updateEditorResult('请至少选择一种标点。'); return; }
-      if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText) await saveDirectEdit(false);
+      if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText && !(await saveDirectEdit(false))) return;
 
       const previousScroll = readerContainer.scrollTop;
       const snapshot = {
         chapters: cloneChapters(state.chapters),
-        options: state.punctuationOptions ? { ...state.punctuationOptions } : null
+        options: state.punctuationOptions ? { ...state.punctuationOptions } : null,
+        sourceDocuments: Object.fromEntries(Object.entries(state.sourceDocuments).map(([key, value]) => [key, { ...value }]))
       };
       let totalChanges = 0;
       state.chapters = state.chapters.map(chapter => {
-        const titleResult = normalizePunctuation(chapter.title, options);
+        const titleResult = canSaveChapterToSource(chapter)
+          ? { text: chapter.title, changes: 0 }
+          : normalizePunctuation(chapter.title, options);
         const htmlResult = chapter.isEpubHtml ? normalizeHtmlPunctuation(chapter.htmlContent, options) : null;
         const contentResult = chapter.isEpubHtml
           ? { text: getEpubHtmlText(htmlResult.html), changes: 0 }
@@ -1092,6 +2111,28 @@
 
       state.punctuationHistory = snapshot;
       state.punctuationOptions = options;
+      let savedSourceFiles = 0;
+      try {
+        for (const chapter of state.chapters) {
+          if (!canSaveChapterToSource(chapter)) continue;
+          const normalizedBody = getChapterBodyContent(chapter);
+          const update = buildSourceDocumentUpdate(chapter, normalizedBody);
+          applySourceDocumentUpdate(chapter, normalizedBody, update);
+        }
+        savedSourceFiles = await saveAllSourceDocuments();
+      } catch (error) {
+        console.error(error);
+        state.chapters = snapshot.chapters;
+        state.sourceDocuments = snapshot.sourceDocuments;
+        state.punctuationHistory = null;
+        state.punctuationOptions = snapshot.options;
+        setPunctuationOptions(state.punctuationOptions);
+        renderChapter(state.currentChapter);
+        requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
+        updateEditorResult(error?.message || '标点替换未能保存到原文件。');
+        showToast('标点替换失败，内容未改动');
+        return;
+      }
       syncEditedChapterEdits();
       saveChapterEdits();
       $('punctuationUndoBtn').disabled = false;
@@ -1099,7 +2140,7 @@
       if (state.directEditing) state.directEditOriginalText = getDirectEditSnapshot();
       requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
       await saveLibrarySnapshot();
-      updateEditorResult(totalChanges ? `已替换 ${formatNumber(totalChanges)} 处标点。` : '没有发现需要替换的英文标点。');
+      updateEditorResult(totalChanges ? `已替换 ${formatNumber(totalChanges)} 处标点${savedSourceFiles ? `，并已写回 ${savedSourceFiles} 个原文件` : ''}。` : '没有发现需要替换的英文标点。');
       showToast(totalChanges ? `已规范 ${formatNumber(totalChanges)} 处标点` : '没有需要替换的标点');
     }
 
@@ -1107,9 +2148,26 @@
       if (!state.punctuationHistory) return;
       const previousScroll = readerContainer.scrollTop;
       const snapshot = state.punctuationHistory;
+      const currentChapters = cloneChapters(state.chapters);
+      const currentSourceDocuments = Object.fromEntries(Object.entries(state.sourceDocuments).map(([key, value]) => [key, { ...value }]));
       state.chapters = Array.isArray(snapshot) ? snapshot : snapshot.chapters;
       state.punctuationOptions = Array.isArray(snapshot) ? null : snapshot.options;
+      state.sourceDocuments = Array.isArray(snapshot) ? state.sourceDocuments : snapshot.sourceDocuments;
       setPunctuationOptions(state.punctuationOptions);
+      try {
+        await saveAllSourceDocuments();
+      } catch (error) {
+        console.error(error);
+        state.chapters = currentChapters;
+        state.sourceDocuments = currentSourceDocuments;
+        state.punctuationOptions = snapshot.options;
+        setPunctuationOptions(state.punctuationOptions);
+        renderChapter(state.currentChapter);
+        requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
+        updateEditorResult(error?.message || '无法将撤销结果保存到原文件。');
+        showToast('撤销失败，当前替换结果仍保留');
+        return;
+      }
       syncEditedChapterEdits();
       saveChapterEdits();
       state.punctuationHistory = null;
@@ -1132,28 +2190,85 @@
       });
     }
 
+    function assertFileSize(file, maximumBytes, label) {
+      const size = Number(file?.size || 0);
+      if (size > maximumBytes) {
+        throw new Error(`${label}超过 ${formatNumber(Math.round(maximumBytes / 1024 / 1024))} MB 的安全导入上限`);
+      }
+    }
+
+    function isPlausibleTextContent(content) {
+      const visible = Array.from(String(content || '')).filter(character => !/\s/u.test(character));
+      if (visible.length < 2) return true;
+      const suspicious = visible.filter(character => /[\uE000-\uF8FF\uFB00-\uFDFF\uFE70-\uFEFF\uFFF0-\uFFFF]/u.test(character));
+      return suspicious.length / visible.length < 0.8;
+    }
+
     function decodeTextBuffer(buffer) {
       const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-      let utf8 = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-      if ((utf8.match(/�/g) || []).length > Math.max(2, utf8.length * 0.01)) {
-        try { utf8 = new TextDecoder('gb18030', { fatal: false }).decode(bytes); } catch (_) { /* fallback kept */ }
+      const startsWith = (first, second) => bytes.length >= 2 && bytes[0] === first && bytes[1] === second;
+      if (startsWith(0xFF, 0xFE)) {
+        try {
+          const content = new TextDecoder('utf-16le', { fatal: true }).decode(bytes.subarray(2));
+          if (!isPlausibleTextContent(content)) throw new Error('implausible');
+          return content;
+        } catch (_) {
+          throw new Error('UTF-16 文本文件已损坏');
+        }
       }
-      return utf8.replace(/^\uFEFF/, '');
+      if (startsWith(0xFE, 0xFF)) {
+        try {
+          const content = new TextDecoder('utf-16be', { fatal: true }).decode(bytes.subarray(2));
+          if (!isPlausibleTextContent(content)) throw new Error('implausible');
+          return content;
+        } catch (_) {
+          throw new Error('UTF-16 文本文件已损坏');
+        }
+      }
+      try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+      } catch (_) {
+        try {
+          return new TextDecoder('gb18030', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+        } catch (_) {
+          throw new Error('文本文件编码无法识别');
+        }
+      }
     }
 
     async function readFile(file) {
+      assertFileSize(file, maxTextFileBytes, '文本文件');
       return decodeTextBuffer(await readBinaryFile(file));
+    }
+
+    function isReasonablePlainChapterTitle(title) {
+      return String(title || '').trim().length <= 80;
     }
 
     function parseInternalChapters(content, filename) {
       const pattern = /^\s*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇].*|Chapter\s+\d+.*))\s*$/gim;
       const matches = [];
       let match;
-      while ((match = pattern.exec(content)) !== null) matches.push({ index: match.index, title: match[1].trim() });
+      while ((match = pattern.exec(content)) !== null) {
+        const headingStart = match.index + match[0].indexOf(match[1]);
+        const title = match[1].trim();
+        // A whole body paragraph can begin with "第一章"; chapter headings are compact by nature.
+        if (!isReasonablePlainChapterTitle(title)) continue;
+        matches.push({ index: headingStart, title });
+      }
       if (matches.length <= 1) return [];
-      return matches.map((item, index) => ({
-        title: item.title, content: content.slice(item.index + matchLineLength(content, item.index), index < matches.length - 1 ? matches[index + 1].index : content.length).trim(), filename, isMarkdown: false
-      }));
+      return matches.map((item, index) => {
+        const bodyStart = item.index + matchLineLength(content, item.index);
+        const bodyEnd = index < matches.length - 1 ? matches[index + 1].index : content.length;
+        return {
+          title: item.title,
+          content: content.slice(bodyStart, bodyEnd).trim(),
+          filename,
+          isMarkdown: false,
+          sourceBodyStart: bodyStart,
+          sourceBodyEnd: bodyEnd
+        };
+      });
     }
 
     function matchLineLength(text, index) {
@@ -1169,14 +2284,22 @@
       if (matches.length <= 1) return [];
       return matches.map((item, index) => {
         const start = matchLineLength(content, item.index) + item.index;
-        return { title: item.title, content: content.slice(start, index < matches.length - 1 ? matches[index + 1].index : content.length).trim(), filename, isMarkdown: true };
+        const end = index < matches.length - 1 ? matches[index + 1].index : content.length;
+        return {
+          title: item.title,
+          content: content.slice(start, end).trim(),
+          filename,
+          isMarkdown: true,
+          sourceBodyStart: start,
+          sourceBodyEnd: end
+        };
       });
     }
 
     function extractLeadingPlainChapter(content) {
       const source = String(content || '').replace(/^\uFEFF/, '');
       const match = source.match(/^[ \t\r\n]*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇][^\r\n]*|Chapter\s+\d+[^\r\n]*))[ \t]*(?:\r?\n|$)/i);
-      if (!match) return null;
+      if (!match || !isReasonablePlainChapterTitle(match[1])) return null;
       return { title: match[1].trim(), content: source.slice(match[0].length).trimStart() };
     }
 
@@ -1207,17 +2330,22 @@
         return internal.map((chapter, index) => ({
           ...chapter,
           filename: relativePath,
-          sourceKey: `${relativePath}\u0000${chapter.title}`
+          sourceKey: `${relativePath}\u0000${chapter.title}\u0000${index}`,
+          sourceDocumentKey: relativePath
         }));
       }
       const leadingChapter = isMarkdown ? extractLeadingMarkdownChapter(content) : extractLeadingPlainChapter(content);
       const title = leadingChapter?.title || (isMarkdown ? (getMarkdownTitle(content) || getFilenameWithoutExtension(displayFilename)) : getFilenameWithoutExtension(displayFilename));
+      const bodyStart = leadingChapter ? String(content || '').length - String(leadingChapter.content || '').length : 0;
       return [{
         title,
         content: (leadingChapter?.content ?? String(content || '')).trim(),
         filename: relativePath,
         sourceKey: `${relativePath}\u0000${title}`,
-        isMarkdown
+        isMarkdown,
+        sourceDocumentKey: relativePath,
+        sourceBodyStart: bodyStart,
+        sourceBodyEnd: String(content || '').length
       }];
     }
 
@@ -1240,6 +2368,41 @@
       if (exact) return exact;
       const match = Object.values(zip.files).find(entry => !entry.dir && normalizeZipPath('', entry.name).toLowerCase() === normalized.toLowerCase());
       return match || null;
+    }
+
+    function getZipEntryUncompressedSize(entry) {
+      const size = Number(entry?._data?.uncompressedSize);
+      return Number.isFinite(size) && size > 0 ? size : 0;
+    }
+
+    function getImportDiagnosticReason(error, fallback = '文件无法读取') {
+      const message = String(error?.message || '').replace(/[\r\n]+/g, ' ').trim();
+      return message || fallback;
+    }
+
+    function formatImportDiagnostics(diagnostics) {
+      const items = (diagnostics || []).filter(item => item?.path);
+      if (!items.length) return '';
+      const details = items.slice(0, 3).map(item => `${item.path}（${item.reason || '无法读取'}）`).join('、');
+      return `跳过 ${items.length} 个无法解析的内部文件：${details}${items.length > 3 ? ' 等' : ''}`;
+    }
+
+    async function loadZipWithLimits(buffer) {
+      const byteLength = Number(buffer?.byteLength || buffer?.length || 0);
+      if (byteLength > maxBookFileBytes) throw new Error(`压缩包超过 ${formatNumber(Math.round(maxBookFileBytes / 1024 / 1024))} MB 的安全导入上限`);
+      let zip;
+      try {
+        zip = await JSZip.loadAsync(buffer);
+      } catch (_) {
+        throw new Error('压缩包已损坏或不是有效的 ZIP 文件');
+      }
+      const entries = Object.values(zip.files).filter(entry => !entry.dir);
+      if (entries.length > maxZipEntries) throw new Error(`压缩包中的文件数量超过 ${formatNumber(maxZipEntries)} 个，已停止解析`);
+      const totalUncompressedBytes = entries.reduce((total, entry) => total + getZipEntryUncompressedSize(entry), 0);
+      if (totalUncompressedBytes > maxZipUncompressedBytes) {
+        throw new Error(`压缩包解压后超过 ${formatNumber(Math.round(maxZipUncompressedBytes / 1024 / 1024))} MB 的安全上限`);
+      }
+      return { zip, entries };
     }
 
     function getXmlTextByLocalName(xml, localName) {
@@ -1301,6 +2464,7 @@
       if (!entry) return '';
       const mimeType = mediaType || getEpubAssetMimeType(path);
       if (!/^image\//i.test(mimeType)) return '';
+      if (getZipEntryUncompressedSize(entry) > maxEmbeddedImageBytes) return '';
       return `data:${mimeType};base64,${await entry.async('base64')}`;
     }
 
@@ -1346,16 +2510,18 @@
 
     async function parseEpubBuffer(buffer, sourceName = 'book.epub') {
       if (typeof JSZip === 'undefined') throw new Error('EPUB/ZIP解析库未加载');
-      const zip = await JSZip.loadAsync(buffer);
+      const { zip } = await loadZipWithLimits(buffer);
       const containerEntry = getZipEntry(zip, 'META-INF/container.xml');
       if (!containerEntry) throw new Error('EPUB缺少目录文件');
       const containerXml = new DOMParser().parseFromString(await containerEntry.async('string'), 'application/xml');
+      if (containerXml.querySelector('parsererror')) throw new Error('EPUB 的 META-INF/container.xml 损坏');
       const rootfile = Array.from(containerXml.getElementsByTagName('*')).find(node => node.localName === 'rootfile' && node.getAttribute('full-path'));
       const opfPath = normalizeZipPath('', rootfile?.getAttribute('full-path') || '');
       const opfEntry = opfPath ? getZipEntry(zip, opfPath) : null;
       if (!opfEntry) throw new Error('EPUB缺少书籍目录');
 
       const opfXml = new DOMParser().parseFromString(await opfEntry.async('string'), 'application/xml');
+      if (opfXml.querySelector('parsererror')) throw new Error('EPUB 书籍目录 OPF 损坏');
       const opfDir = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/')) : '';
       const manifest = new Map();
       Array.from(opfXml.getElementsByTagName('*')).filter(node => node.localName === 'item').forEach(item => {
@@ -1376,11 +2542,15 @@
         .map(node => normalizeZipPath(opfDir, node.getAttribute('href') || ''))
         .filter(Boolean);
 
+      const diagnostics = [];
       const spine = Array.from(opfXml.getElementsByTagName('*')).find(node => node.localName === 'spine');
       const itemRefs = spine
         ? Array.from(spine.getElementsByTagName('*')).filter(node => node.localName === 'itemref')
         : [];
       const orderedIds = itemRefs.map(item => item.getAttribute('idref')).filter(Boolean);
+      orderedIds.forEach(id => {
+        if (!manifest.has(id)) diagnostics.push({ path: `OPF spine: ${id}`, reason: '书籍目录引用的章节不存在' });
+      });
       let orderedItems = (orderedIds.length ? orderedIds.map(id => manifest.get(id)).filter(Boolean) : Array.from(manifest.values()).sort((a, b) => naturalCompare(a.href, b.href)))
         .filter(item => /(?:xhtml|html|htm)$/i.test(item.href) || /html/i.test(item.mediaType))
         .filter(item => !/\bnav\b/i.test(item.properties));
@@ -1393,23 +2563,41 @@
       for (let index = 0; index < orderedItems.length; index += 1) {
         const item = orderedItems[index];
         const entry = getZipEntry(zip, item.href);
-        if (!entry) continue;
+        if (!entry) {
+          diagnostics.push({ path: item.href, reason: '书籍目录引用的文件不存在' });
+          continue;
+        }
         const isCover = guideCoverPaths.some(path => path.toLowerCase() === item.href.toLowerCase()) || /(?:^|[/_.-])(cover|封面)(?:$|[/_.-])/i.test(item.href);
-        chapters.push(await chapterFromEpubHtmlDocument(await entry.async('string'), item.href, sourceName, zip, manifestByPath, { isCover }));
-      }
-      if (!chapters.some(chapter => chapter.isCover) && coverImageItem) {
-        const imageDataUrl = await getEpubAssetDataUrl(zip, coverImageItem.href, coverImageItem.mediaType);
-        if (imageDataUrl) {
-          const htmlContent = `<img src="${imageDataUrl}" alt="封面">`;
-          chapters.unshift({
-            title: '封面', content: '', htmlContent, filename: coverImageItem.href.split('/').pop() || 'cover',
-            sourceKey: `${sourceName}\u0000${coverImageItem.href}\u0000cover`, isMarkdown: false, isEpubHtml: true, isCover: true
-          });
+        try {
+          chapters.push(await chapterFromEpubHtmlDocument(await entry.async('string'), item.href, sourceName, zip, manifestByPath, { isCover }));
+        } catch (error) {
+          console.warn('Unable to read EPUB chapter:', item.href, error);
+          diagnostics.push({ path: item.href, reason: getImportDiagnosticReason(error, '章节内容无法解析') });
         }
       }
-      if (!chapters.length) throw new Error('EPUB中没有可阅读的章节');
+      if (!chapters.some(chapter => chapter.isCover) && coverImageItem) {
+        try {
+          const imageDataUrl = await getEpubAssetDataUrl(zip, coverImageItem.href, coverImageItem.mediaType);
+          if (imageDataUrl) {
+            const htmlContent = `<img src="${imageDataUrl}" alt="封面">`;
+            chapters.unshift({
+              title: '封面', content: '', htmlContent, filename: coverImageItem.href.split('/').pop() || 'cover',
+              sourceKey: `${sourceName}\u0000${coverImageItem.href}\u0000cover`, isMarkdown: false, isEpubHtml: true, isCover: true
+            });
+          } else {
+            diagnostics.push({ path: coverImageItem.href, reason: '封面图片无法读取' });
+          }
+        } catch (error) {
+          console.warn('Unable to read EPUB cover:', coverImageItem.href, error);
+          diagnostics.push({ path: coverImageItem.href, reason: getImportDiagnosticReason(error, '封面图片无法读取') });
+        }
+      }
+      if (!chapters.length) {
+        const detail = formatImportDiagnostics(diagnostics);
+        throw new Error(`EPUB中没有可阅读的章节${detail ? `；${detail}` : ''}`);
+      }
       const fallbackTitle = getFilenameWithoutExtension(String(sourceName).split('/').pop() || sourceName);
-      return { title: getXmlTextByLocalName(opfXml, 'title') || fallbackTitle, chapters };
+      return { title: getXmlTextByLocalName(opfXml, 'title') || fallbackTitle, chapters, diagnostics };
     }
 
     async function parseEpubFile(file) {
@@ -1418,23 +2606,36 @@
 
     async function parseZipFile(file) {
       if (typeof JSZip === 'undefined') throw new Error('EPUB/ZIP解析库未加载');
-      const zip = await JSZip.loadAsync(await readBinaryFile(file));
-      const entries = Object.values(zip.files).filter(entry => !entry.dir);
+      const { zip, entries } = await loadZipWithLimits(await readBinaryFile(file));
       const nestedEpub = entries.find(entry => /\.epub$/i.test(entry.name));
-      if (nestedEpub) return parseEpubBuffer(await nestedEpub.async('arraybuffer'), nestedEpub.name);
+      if (nestedEpub) {
+        if (getZipEntryUncompressedSize(nestedEpub) > maxBookFileBytes) throw new Error('压缩包内的 EPUB 超过安全导入上限');
+        return parseEpubBuffer(await nestedEpub.async('arraybuffer'), nestedEpub.name);
+      }
 
       const textEntries = entries.filter(entry => textFilePattern.test(entry.name)).sort((a, b) => naturalCompare(a.name, b.name));
       const chapters = [];
+      const failedEntries = [];
       for (const entry of textEntries) {
-        const content = decodeTextBuffer(await entry.async('uint8array'));
-        chapters.push(...chaptersFromTextContent(content, entry.name, entry.name));
+        try {
+          const bytes = await entry.async('uint8array');
+          const content = decodeTextBuffer(bytes);
+          chapters.push(...chaptersFromTextContent(content, entry.name, entry.name));
+        } catch (error) {
+          console.warn('Unable to read ZIP text entry:', entry.name, error);
+          failedEntries.push({ path: entry.name, reason: getImportDiagnosticReason(error, '文本文件无法读取') });
+        }
       }
-      if (!chapters.length) throw new Error('压缩包中没有找到 TXT 或 Markdown 文件');
-      return { title: getFilenameWithoutExtension(file.name), chapters };
+      if (!chapters.length) {
+        const detail = formatImportDiagnostics(failedEntries);
+        throw new Error(`压缩包中没有找到可读取的 TXT 或 Markdown 文件${detail}`);
+      }
+      return { title: getFilenameWithoutExtension(file.name), chapters, diagnostics: failedEntries };
     }
 
     async function parseBookFile(file, relativePath = file.name) {
       const extension = (file.name.match(/\.([^.]+)$/)?.[1] || '').toLowerCase();
+      assertFileSize(file, ['epub', 'zip'].includes(extension) ? maxBookFileBytes : maxTextFileBytes, ['epub', 'zip'].includes(extension) ? '书籍文件' : '文本文件');
       if (extension === 'epub') {
         const parsed = await parseEpubFile(file);
         return {
@@ -1449,13 +2650,19 @@
           chapters: parsed.chapters.map((chapter, index) => ({ ...chapter, sourceKey: `${relativePath}\u0000${chapter.sourceKey || chapter.title}\u0000${index}` }))
         };
       }
-      return { title: getFilenameWithoutExtension(file.name), chapters: chaptersFromTextContent(await readFile(file), file.name, relativePath) };
+      const content = await readFile(file);
+      return {
+        title: getFilenameWithoutExtension(file.name),
+        chapters: chaptersFromTextContent(content, file.name, relativePath),
+        sourceDocuments: { [relativePath]: { content, encoding: file.readerEncoding || '', bom: Boolean(file.readerBom) } }
+      };
     }
 
     function getChapterBodyContent(chapter) {
       let content = (chapter.content || '').replace(/^\uFEFF/, '');
       if (chapter.isMarkdown) return content.replace(/^(?:[ \t]*\r?\n)*[ \t]*#\s+.*?[ \t]*#?[ \t]*(?:\r?\n|$)/, '').trimStart();
-      return content.replace(/^\s*(?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇].*)\s*(?:\r?\n|$)/i, '').trimStart();
+      const heading = content.match(/^\s*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇][^\r\n]*|Chapter\s+\d+[^\r\n]*))[ \t]*(?:\r?\n|$)/i);
+      return (heading && isReasonablePlainChapterTitle(heading[1]) ? content.slice(heading[0].length) : content).trimStart();
     }
 
     function renderMarkdownInline(text) {
@@ -1494,10 +2701,439 @@
       flushParagraph(); flushQuote(); flushList(); flushCode(); return output.join('');
     }
 
+    function normalizeSearchQuery(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function getSearchableChapterText(chapter) {
+      const content = getChapterBodyContent(chapter);
+      if (chapter?.isEpubHtml) {
+        const documentNode = new DOMParser().parseFromString(chapter.htmlContent || content, 'text/html');
+        return (documentNode.body?.textContent || '').replace(/^\uFEFF/, '');
+      }
+      if (chapter?.isMarkdown) {
+        const documentNode = new DOMParser().parseFromString(renderMarkdown(content), 'text/html');
+        return documentNode.body?.textContent || '';
+      }
+      return content.split(/\n+/).filter(line => line.trim()).map(line => line.trim()).join('');
+    }
+
+    function getExportChapterContent(chapter, format) {
+      const content = getChapterBodyContent(chapter);
+      if (format === 'markdown' && chapter.isMarkdown) return content.trim();
+      if (chapter.isEpubHtml) return getEpubHtmlText(chapter.htmlContent || content);
+      return chapter.isMarkdown ? markdownToPlainText(content) : content.trim();
+    }
+
+    function getExportContent(scope = state.exportScope, format = state.exportFormat) {
+      const currentChapter = state.chapters[state.currentChapter];
+      const chapters = scope === 'book'
+        ? state.chapters.filter(chapter => !chapter.isCover)
+        : (currentChapter && !currentChapter.isCover ? [currentChapter] : []);
+      const separator = format === 'markdown' ? '\n\n' : '\n\n';
+      return chapters.map((chapter, index) => {
+        const body = getExportChapterContent(chapter, format);
+        if (format === 'markdown') return `# ${chapter.title || `第 ${index + 1} 章`}\n\n${body}`.trim();
+        return `${chapter.title || `第 ${index + 1} 章`}\n\n${body}`.trim();
+      }).filter(Boolean).join(separator).trim();
+    }
+
+    function getExportSuggestedName() {
+      const chapter = state.chapters[state.currentChapter];
+      const suffix = state.exportScope === 'book' ? '全文' : (chapter?.title || '当前章节');
+      return `${state.bookTitle || '静读阅读器'}-${suffix}`;
+    }
+
+    function updateExportControls() {
+      document.querySelectorAll('[data-export-scope]').forEach(button => {
+        button.classList.toggle('active', button.dataset.exportScope === state.exportScope);
+      });
+      document.querySelectorAll('[data-export-format]').forEach(button => {
+        button.classList.toggle('active', button.dataset.exportFormat === state.exportFormat);
+      });
+      const chapters = state.exportScope === 'book'
+        ? state.chapters.filter(chapter => !chapter.isCover)
+        : (state.chapters[state.currentChapter]?.isCover ? [] : [state.chapters[state.currentChapter]].filter(Boolean));
+      const label = state.exportScope === 'book' ? '整本书' : '当前章节';
+      const format = state.exportFormat === 'markdown' ? 'Markdown' : 'TXT';
+      const wordCount = chapters.reduce((total, chapter) => total + getWordCount(getExportChapterContent(chapter, state.exportFormat), state.exportFormat === 'markdown'), 0);
+      $('exportSummary').textContent = chapters.length
+        ? `${label} · ${format} · ${chapters.length} 章 · 正文 ${formatNumber(wordCount)} 字`
+        : '当前没有可导出的正文。';
+      $('confirmExportBtn').disabled = chapters.length === 0;
+    }
+
+    async function exportCurrentContent() {
+      if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
+      if (state.directEditing && !(await exitDirectEditing())) return;
+      const content = getExportContent();
+      if (!content) { showToast('当前没有可导出的正文'); return; }
+      const format = state.exportFormat;
+      try {
+        let result;
+        if (isDesktop && desktopApi?.exportTextContent) {
+          result = await desktopApi.exportTextContent({ content, format, suggestedName: getExportSuggestedName() });
+        } else {
+          const blob = new Blob([content], { type: format === 'markdown' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${getExportSuggestedName()}.${format === 'markdown' ? 'md' : 'txt'}`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(link.href);
+          result = { canceled: false };
+        }
+        if (result?.canceled) return;
+        exportPanel.classList.remove('show');
+        showToast('正文已导出');
+      } catch (error) {
+        console.error(error);
+        showToast(error?.message || '导出正文失败，请重试');
+      }
+    }
+
+    function getSearchSnippet(text, start, end) {
+      const left = Math.max(0, start - 34);
+      const right = Math.min(text.length, end + 58);
+      return `${left > 0 ? '...' : ''}${text.slice(left, right)}${right < text.length ? '...' : ''}`;
+    }
+
+    function buildBookSearch(query, scope = state.search.scope) {
+      const needle = normalizeSearchQuery(query);
+      if (!needle) return [];
+      const lowerNeedle = needle.toLocaleLowerCase('zh-CN');
+      const matches = [];
+      state.chapters.forEach((chapter, chapterIndex) => {
+        if (chapter.isCover || (scope === 'chapter' && chapterIndex !== state.currentChapter)) return;
+        const text = getSearchableChapterText(chapter);
+        const lowerText = text.toLocaleLowerCase('zh-CN');
+        let from = 0;
+        while (from < lowerText.length) {
+          const start = lowerText.indexOf(lowerNeedle, from);
+          if (start < 0) break;
+          const end = start + needle.length;
+          matches.push({
+            chapterIndex,
+            chapterKey: getChapterKey(chapter),
+            start,
+            end,
+            quote: text.slice(start, end),
+            snippet: getSearchSnippet(text, start, end),
+            text
+          });
+          from = Math.max(end, start + 1);
+          if (matches.length >= 2000) return;
+        }
+      });
+      return matches;
+    }
+
+    function renderSearchResults() {
+      const summary = $('searchSummary');
+      const results = $('searchResults');
+      const query = normalizeSearchQuery(state.search.query);
+      const previousButton = $('searchPreviousBtn');
+      const nextButton = $('searchNextBtn');
+      const scopeLabel = state.search.scope === 'book' ? '全局' : '本章';
+      results.innerHTML = '';
+      document.querySelectorAll('[data-search-scope]').forEach(button => {
+        const active = button.dataset.searchScope === state.search.scope;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      previousButton.disabled = !state.search.matches.length;
+      nextButton.disabled = !state.search.matches.length;
+      if (!query) {
+        summary.textContent = `输入文字后在${scopeLabel}搜索。`;
+        return;
+      }
+      const count = state.search.matches.length;
+      summary.textContent = count
+        ? `${scopeLabel}找到 ${formatNumber(count)} 处${state.search.currentIndex >= 0 ? `，当前第 ${state.search.currentIndex + 1} 处` : ''}。`
+        : `${scopeLabel}没有找到匹配的正文。`;
+      state.search.matches.slice(0, 300).forEach((match, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `search-result${index === state.search.currentIndex ? ' active' : ''}`;
+        const chapter = state.chapters[match.chapterIndex];
+        const startInSnippet = match.snippet.indexOf(match.text.slice(match.start, match.end));
+        const quote = match.text.slice(match.start, match.end);
+        const beforeMatch = match.snippet.slice(0, startInSnippet);
+        const afterMatch = match.snippet.slice(startInSnippet + quote.length);
+        const highlightedSnippet = startInSnippet >= 0
+          ? `${escapeHtml(beforeMatch)}<mark class="search-snippet-match">${escapeHtml(quote)}</mark>${escapeHtml(afterMatch)}`
+          : escapeHtml(match.snippet);
+        const chapterLabel = state.search.scope === 'book'
+          ? `<span class="search-result-chapter">第 ${match.chapterIndex + 1} 章 · ${escapeHtml(chapter?.title || '未命名章节')}</span>`
+          : '';
+        button.innerHTML = `${chapterLabel}<span class="search-result-snippet">${highlightedSnippet}</span>`;
+        button.addEventListener('click', () => goToSearchMatch(index));
+        results.appendChild(button);
+      });
+      if (count > 300) {
+        const more = document.createElement('div');
+        more.className = 'panel-empty';
+        more.textContent = `结果较多，仅显示前 300 项。可用上一个、下一个继续定位。`;
+        results.appendChild(more);
+      }
+    }
+
+    function updateSearch(query = $('searchInput').value) {
+      const hadRenderedSearchMarks = Boolean(readerContent.querySelector('.search-match'));
+      const previousScroll = readerContainer.scrollTop;
+      refreshSearchIndex(query);
+      const currentChapterHasActiveMatch = state.search.matches.length
+        && state.search.matches[state.search.currentIndex]?.chapterIndex === state.currentChapter;
+      if (!state.directEditing && (hadRenderedSearchMarks || currentChapterHasActiveMatch)) {
+        renderChapter(state.currentChapter, { saveProgress: false, refreshChapterSearch: false });
+        readerContainer.scrollTop = previousScroll;
+        if (currentChapterHasActiveMatch) scrollToCurrentSearchMatch();
+      }
+    }
+
+    function refreshSearchIndex(query = state.search.query) {
+      const normalized = normalizeSearchQuery(query);
+      const scope = state.search.scope === 'book' ? 'book' : 'chapter';
+      state.search = { query: normalized, scope, matches: buildBookSearch(normalized, scope), currentIndex: -1 };
+      if (state.search.matches.length) {
+        const current = state.search.matches.findIndex(match => match.chapterIndex === state.currentChapter);
+        state.search.currentIndex = current >= 0 ? current : 0;
+      }
+      renderSearchResults();
+    }
+
+    function setSearchScope(scope) {
+      const nextScope = scope === 'book' ? 'book' : 'chapter';
+      if (state.search.scope === nextScope) return;
+      const hadRenderedSearchMarks = Boolean(readerContent.querySelector('.search-match'));
+      const previousScroll = readerContainer.scrollTop;
+      state.search.scope = nextScope;
+      refreshSearchIndex();
+      if (!state.directEditing && hadRenderedSearchMarks) {
+        renderChapter(state.currentChapter, { saveProgress: false, refreshChapterSearch: false });
+        readerContainer.scrollTop = previousScroll;
+      }
+    }
+
+    async function goToSearchMatch(index) {
+      const matches = state.search.matches;
+      if (!matches.length) return;
+      const next = (index + matches.length) % matches.length;
+      const match = matches[next];
+      state.search.currentIndex = next;
+      if (state.directEditing && !(await exitDirectEditing())) return;
+      if (match.chapterIndex !== state.currentChapter) {
+        if (!(await selectChapter(match.chapterIndex))) return;
+      } else {
+        renderChapter(state.currentChapter, { saveProgress: false, refreshChapterSearch: false });
+      }
+      renderSearchResults();
+      scrollToCurrentSearchMatch();
+    }
+
+    function scrollToCurrentSearchMatch() {
+      requestAnimationFrame(() => {
+        const active = readerContent.querySelector('.search-match.active');
+        if (!active) return;
+        const offset = active.getBoundingClientRect().top - readerContainer.getBoundingClientRect().top;
+        readerContainer.scrollTo({ top: Math.max(0, readerContainer.scrollTop + offset - 140), behavior: 'smooth' });
+      });
+    }
+
+    function findTextRangeInBody(body, targetStart, targetEnd, fallbackQuote = '') {
+      const text = body?.textContent || '';
+      let start = Math.max(0, Number(targetStart) || 0);
+      let end = Math.max(start, Number(targetEnd) || start);
+      if (fallbackQuote && text.slice(start, end) !== fallbackQuote) {
+        const located = text.indexOf(fallbackQuote);
+        if (located >= 0) { start = located; end = located + fallbackQuote.length; }
+      }
+      if (!body || end <= start || end > text.length) return null;
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+      let node;
+      let offset = 0;
+      let startPoint = null;
+      let endPoint = null;
+      while ((node = walker.nextNode())) {
+        const nodeEnd = offset + node.nodeValue.length;
+        if (!startPoint && start >= offset && start <= nodeEnd) startPoint = { node, offset: start - offset };
+        if (end >= offset && end <= nodeEnd) { endPoint = { node, offset: end - offset }; break; }
+        offset = nodeEnd;
+      }
+      if (!startPoint || !endPoint) return null;
+      const range = document.createRange();
+      range.setStart(startPoint.node, startPoint.offset);
+      range.setEnd(endPoint.node, endPoint.offset);
+      return range;
+    }
+
+    function applyTextMarks() {
+      if (state.directEditing) return;
+      const body = getEditableChapterBody();
+      const chapter = state.chapters[state.currentChapter];
+      if (!body || !chapter || chapter.isCover) return;
+      const chapterKey = getChapterKey(chapter);
+      const activeSearch = state.search.matches[state.search.currentIndex];
+      const ranges = new Map();
+      const addRange = (item, type) => {
+        const key = `${Number(item.start) || 0}:${Number(item.end) || 0}:${item.quote || ''}`;
+        if (!ranges.has(key)) ranges.set(key, { ...item, searches: [], annotations: [] });
+        ranges.get(key)[type].push(item);
+      };
+      state.search.matches
+        .filter(match => match.chapterKey === chapterKey)
+        .forEach(match => addRange({ ...match, active: match === activeSearch }, 'searches'));
+      state.marks
+        .filter(mark => mark.kind === 'annotation' && mark.chapterKey === chapterKey && mark.quote)
+        .forEach(mark => addRange(mark, 'annotations'));
+      [...ranges.values()]
+        .sort((a, b) => Number(b.start) - Number(a.start) || Number(b.end) - Number(a.end))
+        .forEach(mark => {
+          const range = findTextRangeInBody(body, mark.start, mark.end, mark.quote || '');
+          if (!range || range.collapsed) return;
+          const hasSearch = mark.searches.length > 0;
+          const wrapper = document.createElement(hasSearch ? 'mark' : 'span');
+          wrapper.className = [
+            hasSearch ? 'search-match' : '',
+            mark.searches.some(search => search.active) ? 'active' : '',
+            mark.annotations.length ? 'annotation-mark' : ''
+          ].filter(Boolean).join(' ');
+          if (mark.annotations.length) {
+            wrapper.dataset.markIds = mark.annotations.map(annotation => annotation.id).join(' ');
+            const note = mark.annotations.map(annotation => annotation.note).find(Boolean);
+            if (note) wrapper.title = note;
+          }
+          try { range.surroundContents(wrapper); } catch (_) { /* Partially overlapping rich-text ranges remain available through the mark list. */ }
+        });
+    }
+
+    function getSelectionInChapter() {
+      const body = getEditableChapterBody();
+      const selection = window.getSelection();
+      if (!body || !selection?.rangeCount || selection.isCollapsed) return null;
+      const range = selection.getRangeAt(0);
+      if (!body.contains(range.commonAncestorContainer)) return null;
+      const quote = String(selection.toString() || '');
+      if (!quote) return null;
+      const before = range.cloneRange();
+      before.selectNodeContents(body);
+      before.setEnd(range.startContainer, range.startOffset);
+      const start = before.toString().length;
+      return { start, end: start + quote.length, quote };
+    }
+
+    function renderMarks() {
+      const list = $('markList');
+      const empty = $('markEmpty');
+      if (!list || !empty) return;
+      list.innerHTML = '';
+      empty.hidden = state.marks.length > 0;
+      state.marks.forEach(mark => {
+        const chapterIndex = state.chapters.findIndex(chapter => getChapterKey(chapter) === mark.chapterKey);
+        const chapter = state.chapters[chapterIndex];
+        const item = document.createElement('article');
+        item.className = 'mark-item';
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'mark-open';
+        open.innerHTML = `<span class="mark-title"><i class="fa-solid ${mark.kind === 'bookmark' ? 'fa-bookmark' : 'fa-highlighter'} mr-1 text-[var(--accent)]"></i>${escapeHtml(chapter ? `第 ${chapterIndex + 1} 章 · ${chapter.title}` : '原章节已不存在')}</span>${mark.quote ? `<span class="mark-quote">${escapeHtml(mark.quote)}</span>` : ''}${mark.note ? `<span class="mark-note">${escapeHtml(mark.note)}</span>` : ''}`;
+        open.disabled = chapterIndex < 0;
+        open.addEventListener('click', () => openMark(mark));
+        const actions = document.createElement('div');
+        actions.className = 'mark-actions';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'mark-action delete';
+        remove.title = '删除标记';
+        remove.setAttribute('aria-label', '删除标记');
+        remove.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+        remove.addEventListener('click', () => deleteMark(mark.id));
+        actions.appendChild(remove);
+        item.append(open, actions);
+        list.appendChild(item);
+      });
+    }
+
+    async function addBookmark() {
+      const chapter = state.chapters[state.currentChapter];
+      if (!chapter || state.demo) { showToast('请先导入一本书'); return; }
+      if (state.directEditing) { showToast('请先退出正文编辑，再添加书签或批注'); return; }
+      const mark = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        kind: 'bookmark',
+        chapterKey: getChapterKey(chapter),
+        scroll: readerContainer.scrollTop,
+        start: 0,
+        end: 0,
+        quote: '',
+        note: String($('markNoteInput').value || '').trim(),
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      state.marks.unshift(mark);
+      await saveMarks();
+      $('markNoteInput').value = '';
+      renderMarks();
+      showToast('已添加书签');
+    }
+
+    async function addAnnotation() {
+      const chapter = state.chapters[state.currentChapter];
+      if (!chapter || state.demo) { showToast('请先导入一本书'); return; }
+      if (state.directEditing) { showToast('请先退出正文编辑，再添加书签或批注'); return; }
+      const selection = getSelectionInChapter();
+      if (!selection) { showToast('请先在正文中选中一段文字'); return; }
+      const mark = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        kind: 'annotation',
+        chapterKey: getChapterKey(chapter),
+        scroll: readerContainer.scrollTop,
+        start: selection.start,
+        end: selection.end,
+        quote: selection.quote,
+        note: String($('markNoteInput').value || '').trim(),
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      state.marks.unshift(mark);
+      await saveMarks();
+      $('markNoteInput').value = '';
+      window.getSelection()?.removeAllRanges();
+      renderMarks();
+      renderChapter(state.currentChapter, { saveProgress: false });
+      showToast('已添加文本批注');
+    }
+
+    async function openMark(mark) {
+      const chapterIndex = state.chapters.findIndex(chapter => getChapterKey(chapter) === mark.chapterKey);
+      if (chapterIndex < 0) { showToast('原章节已不存在'); return; }
+      if (!(await selectChapter(chapterIndex))) return;
+      requestAnimationFrame(() => {
+        const escapedId = window.CSS?.escape ? window.CSS.escape(mark.id) : String(mark.id).replace(/["\\]/g, '\\$&');
+        const annotation = readerContent.querySelector(`.annotation-mark[data-mark-ids~="${escapedId}"]`);
+        if (annotation && mark.kind === 'annotation') {
+          const offset = annotation.getBoundingClientRect().top - readerContainer.getBoundingClientRect().top;
+          readerContainer.scrollTo({ top: Math.max(0, readerContainer.scrollTop + offset - 140), behavior: 'smooth' });
+        } else {
+          readerContainer.scrollTo({ top: Math.max(0, Number(mark.scroll) || 0), behavior: 'smooth' });
+        }
+      });
+    }
+
+    async function deleteMark(id) {
+      state.marks = state.marks.filter(mark => mark.id !== id);
+      await saveMarks();
+      renderMarks();
+      renderChapter(state.currentChapter, { saveProgress: false });
+      showToast('已删除标记');
+    }
+
     function renderChapterList() {
       chapterList.innerHTML = '';
       chapterCount.textContent = `${state.chapters.length} 章`;
       $('sidebarBookName').textContent = state.bookTitle || '未命名书籍';
+      $('bookWordCount').textContent = `正文 ${formatNumber(getBookWordCount())} 字`;
       $('emptyChapterList').classList.toggle('hidden', state.chapters.length > 0);
       state.chapters.forEach((chapter, index) => {
         const li = document.createElement('li');
@@ -1509,9 +3145,10 @@
       });
     }
 
-    function renderChapter(index) {
+    function renderChapter(index, { saveProgress: shouldSaveProgress = true, refreshChapterSearch = true } = {}) {
       const chapter = state.chapters[index]; if (!chapter) return;
       state.currentChapter = index;
+      if (refreshChapterSearch && state.search.scope === 'chapter' && state.search.query) refreshSearchIndex();
       const content = getChapterBodyContent(chapter);
       const bodyHtml = chapter.isEpubHtml
         ? (chapter.htmlContent || '')
@@ -1529,32 +3166,41 @@
         <div class="chapter-body${chapter.isEpubHtml ? ' epub-html' : ''}${chapter.isCover ? ' epub-cover' : ''}">${bodyHtml || '<p>本章暂无正文。</p>'}</div>
         ${endHtml}`;
       applyReadingSettings();
+      applyTextMarks();
       renderChapterList();
       if (state.directEditing) {
         const body = getEditableChapterBody();
         if (body) {
           body.contentEditable = 'true';
           body.classList.add('direct-editing');
+          if (chapter.isMarkdown && !chapter.isEpubHtml) {
+            body.textContent = getChapterBodyContent(chapter);
+            body.classList.add('raw-markdown');
+          }
         }
       }
+      $('sourceBackupBtn').classList.toggle('show', Boolean(getSourceBackupRequest()));
+      syncMobileMoreActions();
       $('prevPageBtn').disabled = index === 0;
       $('nextPageBtn').disabled = index === state.chapters.length - 1;
       readerContainer.scrollTop = 0;
       progressFill.style.width = '0%';
-      saveProgress();
+      if (shouldSaveProgress) saveProgress();
     }
 
     async function selectChapter(index) {
+      if (!state.chapters[index]) return false;
       if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText) {
         const action = await askUnsavedAction('switch');
-        if (action === 'keep') return;
-        if (action === 'save') await saveDirectEdit(false);
+        if (action === 'keep') return false;
+        if (action === 'save' && !(await saveDirectEdit(false))) return false;
         setDirectEditing(false);
       } else if (state.directEditing) {
         setDirectEditing(false);
       }
       renderChapter(index);
       if (window.innerWidth < 841) toggleSidebar(false);
+      return true;
     }
     function showLoading(show) { $('loading').classList.toggle('show', show); }
 
@@ -1562,6 +3208,7 @@
       if (!chapters.length) { showToast('没有解析出可阅读的章节'); return false; }
       if (state.directEditing && !(await exitDirectEditing())) return false;
       syncEditedChapterEdits();
+      const parsedChapters = inferChapterTypes(chapters);
       const previousEdits = { ...state.chapterEdits };
       const previousChapter = state.chapters[state.currentChapter];
       const previousKey = previousChapter ? (previousChapter.sourceKey || `${previousChapter.filename}\u0000${previousChapter.title}`) : '';
@@ -1570,17 +3217,37 @@
       if (!options.isUpdate && !options.restoring) state.punctuationOptions = null;
       state.demo = false;
       state.bookTitle = bookTitle || '我的小说';
-      state.folderHandle = folderHandle || state.folderHandle || null;
+      state.folderHandle = folderHandle || (options.isUpdate || options.restoring ? state.folderHandle : null);
       state.sourcePath = options.sourcePath || '';
       state.sourceType = options.sourceType || '';
-      state.chapterEdits = { ...loadChapterEdits(state.bookTitle), ...((options.isUpdate || options.restoring) ? previousEdits : {}) };
+      state.sourceAvailable = Boolean(state.sourcePath);
+      state.sourceMissing = false;
+      state.libraryIdentity = createLibraryIdentity({
+        sourcePath: state.sourcePath,
+        sourceType: state.sourceType,
+        bookTitle: state.bookTitle,
+        chapters: parsedChapters
+      });
+      state.marks = loadMarks();
+      state.search = { query: '', scope: 'chapter', matches: [], currentIndex: -1 };
+      state.sourceDocuments = options.sourceDocuments && typeof options.sourceDocuments === 'object'
+        ? options.sourceDocuments
+        : ((options.isUpdate || options.restoring) ? state.sourceDocuments : {});
+      const sourceIsText = isDesktop && (
+        state.sourceType === 'folder' ||
+        (state.sourceType === 'book' && textFilePattern.test(state.sourcePath))
+      );
+      state.chapterEdits = sourceIsText
+        ? {}
+        : { ...loadChapterEdits(state.bookTitle, state), ...((options.isUpdate || options.restoring) ? previousEdits : {}) };
+      if (sourceIsText) saveChapterEdits();
       state.punctuationHistory = null;
       $('punctuationUndoBtn').disabled = true;
       updateEditorResult('');
       $('bookTitle').textContent = state.bookTitle;
       document.title = `${state.bookTitle} - 阅读器`;
 
-      state.chapters = inferChapterTypes(chapters);
+      state.chapters = parsedChapters;
       if (shouldReapplyPunctuation) {
         state.chapters = normalizeChapters(state.chapters, shouldReapplyPunctuation);
         setPunctuationOptions(shouldReapplyPunctuation);
@@ -1595,9 +3262,9 @@
         if (matchedIndex >= 0) nextChapter = matchedIndex;
       }
       state.currentChapter = nextChapter;
-      renderChapter(nextChapter);
+      renderChapter(nextChapter, { saveProgress: false });
       if (options.isUpdate && previousKey) requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
-      else restoreProgress();
+      else if (!options.skipProgressRestore) restoreProgress();
       if (window.innerWidth >= 841 && state.chapters.length >= 3) toggleSidebar(true);
       await saveLibrarySnapshot();
       return true;
@@ -1610,11 +3277,14 @@
       if (!supported.length) { showToast('没有找到 TXT 或 Markdown 文件'); return false; }
 
       const chapters = [];
+      const sourceDocuments = {};
       for (const item of supported) {
         const relativePath = item.relativePath || item.file.webkitRelativePath || item.file.name;
-        chapters.push(...chaptersFromTextContent(await readFile(item.file), item.file.name, relativePath));
+        const content = await readFile(item.file);
+        sourceDocuments[relativePath] = { content, encoding: item.file.readerEncoding || '', bom: Boolean(item.file.readerBom) };
+        chapters.push(...chaptersFromTextContent(content, item.file.name, relativePath));
       }
-      return loadParsedChapters(chapters, bookTitle, folderHandle, options);
+      return loadParsedChapters(chapters, bookTitle, folderHandle, { ...options, sourceDocuments });
     }
 
     async function loadFromFiles(files) {
@@ -1638,11 +3308,19 @@
       try {
         const parsed = await parseBookFile(file);
         setFolderSource(null);
-        const loaded = await loadParsedChapters(parsed.chapters, parsed.title || getFilenameWithoutExtension(file.name), null, options);
-        if (loaded) showToast(`已导入 ${state.chapters.length} 个章节`);
+        const loaded = await loadParsedChapters(parsed.chapters, parsed.title || getFilenameWithoutExtension(file.name), null, {
+          ...options,
+          sourceDocuments: parsed.sourceDocuments || {}
+        });
+        if (loaded) {
+          const diagnostics = formatImportDiagnostics(parsed.diagnostics);
+          showToast(`已导入 ${state.chapters.length} 个章节${diagnostics ? `；${diagnostics}` : ''}`);
+        }
+        return loaded;
       } catch (error) {
         console.error(error);
         showToast(error?.message || '解析书籍失败，请检查文件格式');
+        return false;
       } finally {
         showLoading(false);
       }
@@ -1662,6 +3340,11 @@
       state.demo = true; state.bookTitle = '雾港来信'; $('bookTitle').textContent = state.bookTitle; document.title = `${state.bookTitle} - 阅读器`;
       state.sourcePath = '';
       state.sourceType = '';
+      state.sourceAvailable = false;
+      state.libraryIdentity = '';
+      state.marks = [];
+      state.search = { query: '', scope: 'chapter', matches: [], currentIndex: -1 };
+      state.sourceDocuments = {};
       setFolderSource(null);
       state.chapterEdits = {};
       state.punctuationHistory = null;
@@ -1676,46 +3359,155 @@
       openReader(); renderChapter(0); if (window.innerWidth >= 841) toggleSidebar(true); showToast('已加载示例章节');
     }
 
-    function openReader() { uploadArea.style.display = 'none'; readerContainer.style.display = 'block'; pageNav.style.display = 'flex'; }
-    function toggleSidebar(force) { const open = typeof force === 'boolean' ? force : !sidebar.classList.contains('open'); sidebar.classList.toggle('open', open); readerContainer.classList.toggle('sidebar-open', open); pageNav.classList.toggle('sidebar-open', open); }
+    function openReader() {
+      document.body.classList.remove('home-mode');
+      uploadArea.style.display = 'none';
+      readerContainer.style.display = 'block';
+      pageNav.style.display = 'flex';
+    }
+
+    async function showHome() {
+      if (state.directEditing && !(await exitDirectEditing())) return false;
+      if (state.chapters.length && !state.demo) await saveLibrarySnapshot();
+      toggleSidebar(false);
+      settingsPanel.classList.remove('show');
+      editorPanel.classList.remove('show');
+      backupPanel.classList.remove('show');
+      searchPanel.classList.remove('show');
+      marksPanel.classList.remove('show');
+      exportPanel.classList.remove('show');
+      toggleImportPanel(false);
+      toggleMobileMorePanel(false);
+      document.body.classList.add('home-mode');
+      readerContainer.style.display = 'none';
+      pageNav.style.display = 'none';
+      uploadArea.style.display = 'block';
+      progressFill.style.width = '0%';
+      $('bookTitle').textContent = '阅读器';
+      document.title = '阅读器';
+      await renderReadingHistory();
+      return true;
+    }
+
+    function toggleSidebar(force) {
+      if (document.body.classList.contains('home-mode')) force = false;
+      const open = typeof force === 'boolean' ? force : !sidebar.classList.contains('open');
+      sidebar.classList.toggle('open', open);
+      readerContainer.classList.toggle('sidebar-open', open);
+      pageNav.classList.toggle('sidebar-open', open);
+    }
 
     function copyCurrentChapter() {
       const chapter = state.chapters[state.currentChapter]; if (!chapter) { showToast('请先导入一本书'); return; }
       const content = state.directEditing ? getDirectEditContent() : getChapterBodyContent(chapter);
-      const text = chapter.isMarkdown ? markdownToPlainText(content) : content;
+      const text = chapter.isEpubHtml ? getEpubHtmlText(chapter.htmlContent || content) : (chapter.isMarkdown ? markdownToPlainText(content) : content);
       const done = () => showToast('已复制到剪贴板');
       if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text)); else fallbackCopy(text);
     }
     function fallbackCopy(text) { const textarea = document.createElement('textarea'); textarea.value = text; textarea.style.position = 'fixed'; textarea.style.left = '-9999px'; document.body.appendChild(textarea); textarea.select(); try { document.execCommand('copy'); showToast('已复制到剪贴板'); } catch (_) { showToast('复制失败，请手动选择文本'); } textarea.remove(); }
     function showToast(message) { $('copyToast').querySelector('span').textContent = message; $('copyToast').classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => $('copyToast').classList.remove('show'), 1700); }
 
+    function getReadingPreset(name = state.readingPreset) {
+      return readingPresets[name] || readingPresets.comfortable;
+    }
+
+    function updateReadingSettingControls() {
+      document.querySelectorAll('[data-preset]').forEach(el => el.classList.toggle('active', el.dataset.preset === state.readingPreset));
+      document.querySelectorAll('[data-font]').forEach(el => el.classList.toggle('active', el.dataset.font === state.fontFamily));
+      document.querySelectorAll('[data-line]').forEach(el => el.classList.toggle('active', Number(el.dataset.line) === Number(state.lineHeight)));
+    }
+
+    function setReadingPreset(name) {
+      const preset = readingPresets[name];
+      if (!preset) return;
+      state.readingPreset = name;
+      state.fontSize = preset.fontSize;
+      state.lineHeight = preset.lineHeight;
+      state.fontFamily = preset.fontFamily;
+      state.readerPaperPadding = preset.paperPadding;
+      state.readerPaperPaddingMobile = preset.paperPaddingMobile;
+      applyReadingSettings();
+      saveSettings();
+    }
+
+    function markCustomReadingSettings() {
+      if (state.readingPreset !== 'custom') state.readingPreset = 'custom';
+    }
+
     function applyReadingSettings() {
       $('fontSizeValue').textContent = `${state.fontSize} px`;
       document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol').forEach(el => el.style.fontSize = `${state.fontSize}px`);
       document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol, .chapter-body blockquote').forEach(el => el.style.lineHeight = state.lineHeight);
-      const fonts = { serif: 'Noto Serif SC, Songti SC, serif', sans: 'Inter, Noto Sans SC, sans-serif', kai: 'KaiTi, STKaiti, serif', yuan: 'Yuanti SC, PingFang SC, sans-serif' };
-      readerContent.style.fontFamily = fonts[state.fontFamily] || fonts.serif;
+      const fonts = {
+        serif: '"Noto Serif SC Variable", serif',
+        sans: '"Noto Sans SC Variable", sans-serif',
+        kai: '"LXGW WenKai Reader", serif',
+        yuan: '"Smiley Sans Reader", sans-serif'
+      };
+      readerContent.style.setProperty('--reader-font-family', fonts[state.fontFamily] || fonts.serif);
+      readerContent.style.setProperty('--reader-paper-padding', state.readerPaperPadding || getReadingPreset().paperPadding);
+      readerContent.style.setProperty('--reader-paper-padding-mobile', state.readerPaperPaddingMobile || getReadingPreset().paperPaddingMobile);
+      updateReadingSettingControls();
     }
-    function saveSettings() { setStoredJson('reader_settings', { fontSize: state.fontSize, lineHeight: state.lineHeight, theme: state.theme, fontFamily: state.fontFamily }); }
+    function saveSettings() {
+      setStoredJson('reader_settings', {
+        fontSize: state.fontSize,
+        lineHeight: state.lineHeight,
+        theme: state.theme,
+        fontFamily: state.fontFamily,
+        readingPreset: state.readingPreset,
+        readerPaperPadding: state.readerPaperPadding,
+        readerPaperPaddingMobile: state.readerPaperPaddingMobile
+      });
+    }
     function loadSettings() {
       const saved = getStoredJson('reader_settings', {});
-      Object.assign(state, { fontSize: saved?.fontSize || 18, lineHeight: saved?.lineHeight || 2.05, theme: saved?.theme || 'default', fontFamily: saved?.fontFamily || 'serif' });
+      const savedPreset = saved?.readingPreset === 'custom'
+        ? 'custom'
+        : (Object.prototype.hasOwnProperty.call(readingPresets, saved?.readingPreset) ? saved.readingPreset : 'comfortable');
+      const preset = getReadingPreset(savedPreset === 'custom' ? 'comfortable' : savedPreset);
+      Object.assign(state, {
+        fontSize: Number(saved?.fontSize) || preset.fontSize,
+        lineHeight: Number(saved?.lineHeight) || preset.lineHeight,
+        theme: saved?.theme || 'default',
+        fontFamily: saved?.fontFamily || preset.fontFamily,
+        readingPreset: savedPreset,
+        readerPaperPadding: saved?.readerPaperPadding || preset.paperPadding,
+        readerPaperPaddingMobile: saved?.readerPaperPaddingMobile || preset.paperPaddingMobile
+      });
       document.body.dataset.theme = state.theme; document.querySelectorAll('.theme-swatch').forEach(el => el.classList.toggle('active', el.dataset.theme === state.theme));
-      document.querySelectorAll('[data-font]').forEach(el => el.classList.toggle('active', el.dataset.font === state.fontFamily));
-      document.querySelectorAll('[data-line]').forEach(el => el.classList.toggle('active', Number(el.dataset.line) === Number(state.lineHeight)));
       applyReadingSettings();
     }
-    function saveProgress() { if (!state.bookTitle || state.demo) return; setStoredJson(`reader_${state.bookTitle}`, { chapter: state.currentChapter, scroll: readerContainer.scrollTop }); }
+    function updateHistoryProgress() {
+      if (!state.bookTitle || state.demo || !state.chapters.length) return;
+      const history = normalizeHistory(getStoredJson(historyStorageKey, []));
+      const historyId = getHistoryIdentity(state);
+      const index = history.findIndex(entry => entry.id === historyId);
+      if (index < 0) return;
+      const entry = history[index];
+      const now = Date.now();
+      if (entry.currentChapter === state.currentChapter && now - Number(entry.lastOpenedAt || 0) < 30000) return;
+      history[index] = { ...entry, currentChapter: state.currentChapter, lastOpenedAt: now };
+      setStoredJson(historyStorageKey, history);
+    }
+    function saveProgress() {
+      if (!state.bookTitle || state.demo) return;
+      setStoredJson(getProgressStorageKey(), { chapter: state.currentChapter, scroll: readerContainer.scrollTop });
+      updateHistoryProgress();
+    }
     function restoreProgress() {
       if (state.demo) return;
-      const saved = getStoredJson(`reader_${state.bookTitle}`);
+      const saved = getSavedProgress();
       if (saved && saved.chapter < state.chapters.length) {
-        renderChapter(saved.chapter);
-        requestAnimationFrame(() => { readerContainer.scrollTop = saved.scroll || 0; });
+        renderChapter(saved.chapter, { saveProgress: false });
+        requestAnimationFrame(() => {
+          readerContainer.scrollTop = saved.scroll || 0;
+          saveProgress();
+        });
       }
     }
 
-    folderUploadBox.addEventListener('click', () => toggleImportPanel(true));
+    folderUploadBox.addEventListener('click', event => { event.stopPropagation(); toggleImportPanel(true); });
     folderUploadBox.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleImportPanel(true); } });
     ['dragenter', 'dragover'].forEach(type => folderUploadBox.addEventListener(type, event => { event.preventDefault(); folderUploadBox.classList.add('dragover'); }));
     ['dragleave', 'drop'].forEach(type => folderUploadBox.addEventListener(type, event => { event.preventDefault(); folderUploadBox.classList.remove('dragover'); }));
@@ -1746,25 +3538,100 @@
     bookInput.addEventListener('change', event => { loadBookFiles(event.target.files); event.target.value = ''; });
     $('updateFolderBtn').addEventListener('click', updateFolder);
     $('reloadSourceBtn').addEventListener('click', reloadSource);
+    $('sourceBackupBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      openSourceBackups();
+    });
     $('showSourceBtn').addEventListener('click', showSourceInExplorer);
+    $('mobileMoreBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      toggleMobileMorePanel();
+    });
+    $('mobileSettingsBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      openFloatingPanel('settings');
+    });
+    $('mobileUpdateFolderBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      toggleMobileMorePanel(false);
+      updateFolder();
+    });
+    $('mobileReloadSourceBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      toggleMobileMorePanel(false);
+      reloadSource();
+    });
+    $('mobilePunctuationBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      openFloatingPanel('editor');
+    });
+    $('mobileBackupsBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      toggleMobileMorePanel(false);
+      openSourceBackups();
+    });
+    $('mobileShowSourceBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      toggleMobileMorePanel(false);
+      showSourceInExplorer();
+    });
+    $('mobileSearchBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
+      openFloatingPanel('search', $('searchInput'));
+      renderSearchResults();
+    });
+    $('mobileMarksBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
+      openFloatingPanel('marks', $('markNoteInput'));
+      renderMarks();
+    });
+    $('mobileExportBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
+      openFloatingPanel('export');
+      updateExportControls();
+    });
     $('loadDemoBtn').addEventListener('click', loadDemo);
+    $('homeBtn').addEventListener('click', () => { showHome(); });
     $('toggleSidebar').addEventListener('click', () => toggleSidebar());
     $('toolbarCopyBtn').addEventListener('click', copyCurrentChapter);
+    $('searchBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
+      openFloatingPanel('search', $('searchInput'));
+      renderSearchResults();
+    });
+    $('marksBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
+      openFloatingPanel('marks', $('markNoteInput'));
+      renderMarks();
+    });
+    $('exportBtn').addEventListener('click', event => {
+      event.stopPropagation();
+      if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
+      openFloatingPanel('export');
+      updateExportControls();
+    });
     $('editorBtn').addEventListener('click', event => {
       event.stopPropagation();
       settingsPanel.classList.remove('show');
       editorPanel.classList.remove('show');
+      toggleMobileMorePanel(false);
       if (state.directEditing) exitDirectEditing();
       else setDirectEditing(true);
     });
     $('punctuationRulesBtn').addEventListener('click', event => {
       event.stopPropagation();
-      settingsPanel.classList.remove('show');
-      editorPanel.classList.toggle('show');
+      openFloatingPanel('editor');
     });
-    $('closeEditorBtn').addEventListener('click', () => {
-      editorPanel.classList.remove('show');
-    });
+    $('closeEditorBtn').addEventListener('click', () => editorPanel.classList.remove('show'));
+    $('closeBackupBtn').addEventListener('click', () => backupPanel.classList.remove('show'));
+    $('closeSearchBtn').addEventListener('click', () => searchPanel.classList.remove('show'));
+    $('closeMarksBtn').addEventListener('click', () => marksPanel.classList.remove('show'));
+    $('closeExportBtn').addEventListener('click', () => exportPanel.classList.remove('show'));
     dialogSaveBtn.addEventListener('click', () => closeReaderDialog('save'));
     dialogDiscardBtn.addEventListener('click', () => closeReaderDialog('discard'));
     dialogKeepEditingBtn.addEventListener('click', () => closeReaderDialog('keep'));
@@ -1775,11 +3642,32 @@
     $('punctuationUndoBtn').addEventListener('click', undoPunctuation);
     $('settingsBtn').addEventListener('click', event => {
       event.stopPropagation();
-      toggleImportPanel(false);
-      editorPanel.classList.remove('show');
-      settingsPanel.classList.toggle('show');
+      openFloatingPanel('settings');
     });
     $('closeSettingsBtn').addEventListener('click', () => settingsPanel.classList.remove('show'));
+    $('exportAppDataBtn').addEventListener('click', async () => {
+      if (!desktopApi?.exportAppData) return;
+      try {
+        const result = await desktopApi.exportAppData();
+        if (!result?.canceled) showToast(`应用数据已导出${result?.backupFiles ? `，包含 ${result.backupFiles} 份原文件备份` : ''}`);
+      } catch (error) {
+        console.error(error);
+        showToast(error?.message || '导出应用数据失败，请重试');
+      }
+    });
+    $('importAppDataBtn').addEventListener('click', async () => {
+      if (!desktopApi?.importAppData) return;
+      if ((await askAppDataImport()) !== 'save') return;
+      try {
+        const result = await desktopApi.importAppData();
+        if (result?.canceled) return;
+        showToast('应用数据已导入，正在重新加载');
+        setTimeout(() => window.location.reload(), 500);
+      } catch (error) {
+        console.error(error);
+        showToast(error?.message || '导入应用数据失败，请重试');
+      }
+    });
     $('checkUpdateBtn').addEventListener('click', async () => {
       if (!desktopApi?.checkForUpdates) return;
       try {
@@ -1806,15 +3694,43 @@
       });
     });
     document.addEventListener('click', event => {
-      if (!settingsPanel.contains(event.target) && event.target !== $('settingsBtn')) settingsPanel.classList.remove('show');
-      if (!importPanel.contains(event.target) && event.target !== $('openImportBtn')) toggleImportPanel(false);
-      if (!editorPanel.contains(event.target) && event.target !== $('editorBtn') && event.target !== $('punctuationRulesBtn')) editorPanel.classList.remove('show');
+      if (!settingsPanel.contains(event.target) && !$('settingsBtn').contains(event.target)) settingsPanel.classList.remove('show');
+      if (!importPanel.contains(event.target) && !$('openImportBtn').contains(event.target) && !folderUploadBox.contains(event.target)) toggleImportPanel(false);
+      if (!editorPanel.contains(event.target) && !$('editorBtn').contains(event.target) && !$('punctuationRulesBtn').contains(event.target)) editorPanel.classList.remove('show');
+      if (!backupPanel.contains(event.target) && !$('sourceBackupBtn').contains(event.target)) backupPanel.classList.remove('show');
+      if (!searchPanel.contains(event.target) && !$('searchBtn').contains(event.target) && !$('mobileSearchBtn').contains(event.target)) searchPanel.classList.remove('show');
+      if (!marksPanel.contains(event.target) && !$('marksBtn').contains(event.target) && !$('mobileMarksBtn').contains(event.target)) marksPanel.classList.remove('show');
+      if (!exportPanel.contains(event.target) && !$('exportBtn').contains(event.target) && !$('mobileExportBtn').contains(event.target)) exportPanel.classList.remove('show');
+      if (!mobileMorePanel.contains(event.target) && !$('mobileMoreBtn').contains(event.target)) toggleMobileMorePanel(false);
     });
-    $('fontPlus').addEventListener('click', () => { state.fontSize = Math.min(28, state.fontSize + 2); applyReadingSettings(); saveSettings(); });
-    $('fontMinus').addEventListener('click', () => { state.fontSize = Math.max(14, state.fontSize - 2); applyReadingSettings(); saveSettings(); });
+    $('searchInput').addEventListener('input', event => updateSearch(event.target.value));
+    $('searchInput').addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); goToSearchMatch(state.search.currentIndex + (event.shiftKey ? -1 : 1)); }
+    });
+    $('searchPreviousBtn').addEventListener('click', () => goToSearchMatch(state.search.currentIndex - 1));
+    $('searchNextBtn').addEventListener('click', () => goToSearchMatch(state.search.currentIndex + 1));
+    document.querySelectorAll('[data-search-scope]').forEach(button => button.addEventListener('click', () => {
+      setSearchScope(button.dataset.searchScope);
+    }));
+    $('addBookmarkBtn').addEventListener('click', addBookmark);
+    $('addAnnotationBtn').addEventListener('click', addAnnotation);
+    document.querySelectorAll('[data-export-scope]').forEach(button => button.addEventListener('click', () => {
+      state.exportScope = button.dataset.exportScope === 'book' ? 'book' : 'current';
+      updateExportControls();
+    }));
+    document.querySelectorAll('[data-export-format]').forEach(button => button.addEventListener('click', () => {
+      state.exportFormat = button.dataset.exportFormat === 'markdown' ? 'markdown' : 'text';
+      updateExportControls();
+    }));
+    $('confirmExportBtn').addEventListener('click', exportCurrentContent);
+    $('historyFilterInput').addEventListener('input', () => renderReadingHistory());
+    $('historySortSelect').addEventListener('change', () => renderReadingHistory());
+    document.querySelectorAll('[data-preset]').forEach(button => button.addEventListener('click', () => setReadingPreset(button.dataset.preset)));
+    $('fontPlus').addEventListener('click', () => { state.fontSize = Math.min(28, state.fontSize + 2); markCustomReadingSettings(); applyReadingSettings(); saveSettings(); });
+    $('fontMinus').addEventListener('click', () => { state.fontSize = Math.max(14, state.fontSize - 2); markCustomReadingSettings(); applyReadingSettings(); saveSettings(); });
     document.querySelectorAll('.theme-swatch').forEach(button => button.addEventListener('click', () => { state.theme = button.dataset.theme; document.body.dataset.theme = state.theme; document.querySelectorAll('.theme-swatch').forEach(el => el.classList.toggle('active', el === button)); saveSettings(); }));
-    document.querySelectorAll('[data-font]').forEach(button => button.addEventListener('click', () => { state.fontFamily = button.dataset.font; document.querySelectorAll('[data-font]').forEach(el => el.classList.toggle('active', el === button)); applyReadingSettings(); saveSettings(); }));
-    document.querySelectorAll('[data-line]').forEach(button => button.addEventListener('click', () => { state.lineHeight = Number(button.dataset.line); document.querySelectorAll('[data-line]').forEach(el => el.classList.toggle('active', el === button)); applyReadingSettings(); saveSettings(); }));
+    document.querySelectorAll('[data-font]').forEach(button => button.addEventListener('click', () => { state.fontFamily = button.dataset.font; markCustomReadingSettings(); applyReadingSettings(); saveSettings(); }));
+    document.querySelectorAll('[data-line]').forEach(button => button.addEventListener('click', () => { state.lineHeight = Number(button.dataset.line); markCustomReadingSettings(); applyReadingSettings(); saveSettings(); }));
     $('prevPageBtn').addEventListener('click', () => { if (state.currentChapter > 0) selectChapter(state.currentChapter - 1); });
     $('nextPageBtn').addEventListener('click', () => { if (state.currentChapter < state.chapters.length - 1) selectChapter(state.currentChapter + 1); });
     $('scrollTopBtn').addEventListener('click', () => { readerContainer.scrollTo({ top: 0, behavior: 'smooth' }); });
@@ -1828,7 +3744,7 @@
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         if (state.directEditing) {
-          event.preventDefault(); saveDirectEdit(true); return;
+          event.preventDefault(); saveAndExitDirectEditing(); return;
         }
       }
       if (event.target.matches('input, textarea, button')) return;
@@ -1855,15 +3771,34 @@
         return;
       }
       if (!snapshot?.chapters?.length) return;
+      if (isDesktop && snapshot.sourcePath) {
+        const restored = snapshot.sourceType === 'folder'
+          ? await loadFromDesktopFolder(snapshot.sourcePath, { restoring: true })
+          : await loadDesktopBookPath(snapshot.sourcePath, { restoring: true });
+        if (restored) {
+          showToast(`已从原文件恢复 ${state.chapters.length} 个章节`);
+          return;
+        }
+      }
+      if (isDesktop && snapshot.sourcePath && !hasRestorableSnapshotContent(snapshot)) {
+        showToast('原始文件无法读取，请在历史记录中移除该条目或重新导入文件。');
+        return;
+      }
       state.demo = false;
       state.bookTitle = snapshot.bookTitle || '我的小说';
       state.sourcePath = snapshot.sourcePath || '';
       state.sourceType = snapshot.sourceType || '';
-      state.chapterEdits = { ...loadChapterEdits(state.bookTitle), ...(snapshot.chapterEdits || {}) };
-      state.chapters = applyChapterEdits(inferChapterTypes(snapshot.chapters));
+      state.sourceAvailable = false;
+      state.sourceDocuments = {};
+      state.libraryIdentity = snapshot.libraryIdentity || createLibraryIdentity(snapshot);
+      state.marks = loadMarks(state);
+      state.search = { query: '', scope: 'chapter', matches: [], currentIndex: -1 };
+      const restoredChapters = inferChapterTypes(snapshot.chapters);
+      state.chapterEdits = { ...loadChapterEdits(state.bookTitle, state), ...(snapshot.chapterEdits || {}) };
+      state.chapters = applyChapterEdits(restoredChapters);
       state.punctuationOptions = snapshot.punctuationOptions || null;
       setPunctuationOptions(state.punctuationOptions);
-      const progress = getStoredJson(`reader_${state.bookTitle}`);
+      const progress = getSavedProgress(state);
       state.currentChapter = Math.min(Number(progress?.chapter ?? snapshot.currentChapter) || 0, state.chapters.length - 1);
       $('bookTitle').textContent = state.bookTitle;
       document.title = `${state.bookTitle} - 阅读器`;
@@ -1873,6 +3808,61 @@
       if (progress?.scroll) requestAnimationFrame(() => { readerContainer.scrollTop = progress.scroll; });
       if (window.innerWidth >= 841 && state.chapters.length >= 3) toggleSidebar(true);
       showToast('已恢复上次阅读内容，点击更新同步新章节');
+    }
+
+    async function restoreHistorySnapshot(snapshot, entry) {
+      if (!hasRestorableSnapshotContent(snapshot)) return false;
+      state.demo = false;
+      state.bookTitle = snapshot.bookTitle || entry?.bookTitle || '我的小说';
+      state.sourcePath = snapshot.sourcePath || entry?.sourcePath || '';
+      state.sourceType = snapshot.sourceType || entry?.sourceType || '';
+      state.sourceAvailable = false;
+      state.sourceMissing = true;
+      state.sourceDocuments = {};
+      state.libraryIdentity = snapshot.libraryIdentity || entry?.libraryIdentity || createLibraryIdentity({ ...snapshot, sourcePath: state.sourcePath, sourceType: state.sourceType });
+      state.marks = loadMarks(state);
+      state.search = { query: '', scope: 'chapter', matches: [], currentIndex: -1 };
+      const restoredChapters = inferChapterTypes(snapshot.chapters);
+      state.chapterEdits = { ...loadChapterEdits(state.bookTitle, state), ...(snapshot.chapterEdits || {}) };
+      state.chapters = applyChapterEdits(restoredChapters);
+      state.punctuationOptions = snapshot.punctuationOptions || entry?.punctuationOptions || null;
+      setPunctuationOptions(state.punctuationOptions);
+      const progress = getHistoryProgress({ ...entry, bookTitle: state.bookTitle, chapterCount: state.chapters.length, currentChapter: snapshot.currentChapter });
+      state.currentChapter = progress.chapter;
+      $('bookTitle').textContent = state.bookTitle;
+      document.title = `${state.bookTitle} - 阅读器`;
+      setFolderSource(null);
+      openReader();
+      renderChapter(state.currentChapter);
+      if (progress.scroll) requestAnimationFrame(() => { readerContainer.scrollTop = progress.scroll; });
+      if (window.innerWidth >= 841 && state.chapters.length >= 3) toggleSidebar(true);
+      await saveLibrarySnapshot();
+      return true;
+    }
+
+    async function loadHistoryEntry(entry) {
+      if (!entry) return;
+      if (state.directEditing && !(await exitDirectEditing())) return;
+      let loaded = false;
+      let sourceLoadAttempted = false;
+      if (isDesktop && entry.sourcePath) {
+        sourceLoadAttempted = true;
+        state.punctuationOptions = entry.punctuationOptions || null;
+        setPunctuationOptions(state.punctuationOptions);
+        loaded = entry.sourceType === 'folder'
+          ? await loadFromDesktopFolder(entry.sourcePath, { restoring: true })
+          : await loadDesktopBookPath(entry.sourcePath, { restoring: true });
+      }
+      if (!loaded && sourceLoadAttempted) {
+        await updateHistoryEntry(entry.id, value => ({ ...value, sourceMissing: true }));
+        await renderReadingHistory();
+      }
+      if (!loaded && entry.snapshot) loaded = await restoreHistorySnapshot(entry.snapshot, entry);
+      if (loaded) {
+        showToast(`已打开《${state.bookTitle}》`);
+        return;
+      }
+      showToast('原始文件无法读取，且没有可用的本地副本');
     }
 
     async function openDesktopPaths(paths) {
@@ -1885,8 +3875,10 @@
     async function startReader() {
       await initializeDesktopStorage();
       loadSettings();
+      $('dataTransferSection').hidden = !isDesktop;
       initializeUpdater();
       if (isDesktop) {
+        desktopApi.onCloseRequested?.(() => { handleCloseRequest(); });
         desktopApi.onOpenBook(paths => {
           if (!desktopReadyForBooks) {
             pendingDesktopBookPaths.push(...paths);
@@ -1901,7 +3893,7 @@
           return;
         }
       }
-      await restoreSavedFolder();
+      await showHome();
     }
 
     startReader();

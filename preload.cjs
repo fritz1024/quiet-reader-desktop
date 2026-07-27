@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 const queuedBookPaths = [];
 const bookOpenListeners = new Set();
 const updateStatusListeners = new Set();
+const closeRequestListeners = new Set();
+let closeRequestPending = false;
 
 ipcRenderer.on('reader:open-book', (_event, paths) => {
   const safePaths = Array.isArray(paths) ? paths.filter(value => typeof value === 'string') : [];
@@ -19,12 +21,26 @@ ipcRenderer.on('reader:update-status', (_event, status) => {
   updateStatusListeners.forEach(listener => listener(status));
 });
 
+ipcRenderer.on('reader:close-requested', () => {
+  if (!closeRequestListeners.size) {
+    closeRequestPending = true;
+    return;
+  }
+  closeRequestListeners.forEach(listener => listener());
+});
+
 contextBridge.exposeInMainWorld('readerDesktop', {
   isDesktop: true,
   chooseBook: () => ipcRenderer.invoke('reader:choose-book'),
   chooseFolder: () => ipcRenderer.invoke('reader:choose-folder'),
   readBook: (filePath) => ipcRenderer.invoke('reader:read-book', filePath),
   readFolder: (folderPath) => ipcRenderer.invoke('reader:read-folder', folderPath),
+  writeSourceFiles: (request) => ipcRenderer.invoke('reader:write-source-files', request),
+  listSourceBackups: (request) => ipcRenderer.invoke('reader:list-source-backups', request),
+  restoreSourceBackup: (request) => ipcRenderer.invoke('reader:restore-source-backup', request),
+  exportTextContent: (request) => ipcRenderer.invoke('reader:export-text-content', request),
+  exportAppData: () => ipcRenderer.invoke('reader:export-app-data'),
+  importAppData: () => ipcRenderer.invoke('reader:import-app-data'),
   showSource: (sourcePath, isFolder) => ipcRenderer.invoke('reader:show-source', sourcePath, Boolean(isFolder)),
   takeOpenBookPaths: async () => [...queuedBookPaths.splice(0), ...await ipcRenderer.invoke('reader:take-open-book-paths')],
   onOpenBook: (listener) => {
@@ -43,5 +59,15 @@ contextBridge.exposeInMainWorld('readerDesktop', {
     if (typeof listener !== 'function') return () => undefined;
     updateStatusListeners.add(listener);
     return () => updateStatusListeners.delete(listener);
+  },
+  confirmClose: () => ipcRenderer.send('reader:confirm-close'),
+  onCloseRequested: (listener) => {
+    if (typeof listener !== 'function') return () => undefined;
+    closeRequestListeners.add(listener);
+    if (closeRequestPending) {
+      closeRequestPending = false;
+      listener();
+    }
+    return () => closeRequestListeners.delete(listener);
   }
 });
