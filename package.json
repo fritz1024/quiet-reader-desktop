@@ -11,7 +11,7 @@
     "dev": "npm run prepare && electron . --dev",
     "dev:quick": "electron . --dev",
     "start": "npm run dev",
-    "package:win": "npm run prepare && electron-builder --win --x64",
+    "package:win": "npm run prepare && electron-builder --win --x64 --publish never",
     "release:win": "npm run package:win"
   },
   "dependencies": {
