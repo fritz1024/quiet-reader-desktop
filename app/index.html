@@ -1878,20 +1878,75 @@
         : 'fa-solid fa-pen-to-square text-[12px]';
     }
 
+    function getViewportTopAnchorText(body) {
+      if (!body) return '';
+      const containerTop = readerContainer.getBoundingClientRect().top;
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_ELEMENT);
+      let node = walker.nextNode();
+      while (node) {
+        const rect = node.getBoundingClientRect();
+        if (rect.height > 0 && rect.bottom > containerTop + 4) {
+          const text = (node.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+          if (text) return text;
+        }
+        node = walker.nextNode();
+      }
+      return '';
+    }
+
+    function scrollRawMarkdownToAnchor(body, anchorText) {
+      if (!anchorText) return false;
+      const raw = body.textContent || '';
+      const needle = anchorText.replace(/\s+/g, ' ');
+      const flat = raw.replace(/\s+/g, ' ');
+      const flatIndex = flat.indexOf(needle);
+      if (flatIndex < 0) return false;
+      let rawIndex = 0;
+      let flatCount = 0;
+      while (rawIndex < raw.length && flatCount < flatIndex) {
+        const ch = raw[rawIndex];
+        const isSpace = /\s/.test(ch);
+        if (!isSpace) { flatCount += 1; rawIndex += 1; continue; }
+        while (rawIndex < raw.length && /\s/.test(raw[rawIndex])) rawIndex += 1;
+        flatCount += 1;
+      }
+      const range = document.createRange();
+      const textNode = body.firstChild;
+      if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return false;
+      const offset = Math.min(rawIndex, textNode.length);
+      try {
+        range.setStart(textNode, offset);
+        range.setEnd(textNode, Math.min(offset + 1, textNode.length));
+        const rect = range.getBoundingClientRect();
+        const containerTop = readerContainer.getBoundingClientRect().top;
+        readerContainer.scrollTop += rect.top - containerTop;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     function setDirectEditing(enabled) {
       const body = getEditableChapterBody();
       if (!body) return;
       const chapter = state.chapters[state.currentChapter];
       const previousScroll = readerContainer.scrollTop;
+      const anchorText = enabled && chapter?.isMarkdown && !chapter.isEpubHtml
+        ? getViewportTopAnchorText(body)
+        : '';
       state.directEditing = enabled;
       body.contentEditable = enabled ? 'true' : 'false';
       body.classList.toggle('direct-editing', enabled);
       body.classList.remove('raw-markdown');
+      body.style.fontSize = '';
+      body.style.lineHeight = '';
       updateEditorButton();
       if (enabled) {
         if (chapter?.isMarkdown && !chapter.isEpubHtml) {
           body.textContent = getChapterBodyContent(chapter);
           body.classList.add('raw-markdown');
+          body.style.fontSize = `${state.fontSize}px`;
+          body.style.lineHeight = state.lineHeight;
         }
         state.directEditOriginalText = getDirectEditSnapshot();
         try {
@@ -1899,7 +1954,10 @@
         } catch {
           body.focus();
         }
-        requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
+        requestAnimationFrame(() => {
+          readerContainer.scrollTop = previousScroll;
+          if (anchorText) scrollRawMarkdownToAnchor(body, anchorText);
+        });
         updateEditorResult(canSaveChapterToSource(state.chapters[state.currentChapter])
           ? '正文已进入编辑模式，保存后会直接覆盖原文件。'
           : getSourceSaveNotice(state.chapters[state.currentChapter]));
@@ -1913,8 +1971,8 @@
       const body = getEditableChapterBody();
       const chapter = state.chapters[state.currentChapter];
       if (!body) return '';
-      const text = (chapter?.isMarkdown ? body.textContent : body.innerText).replace(/^\uFEFF/, '');
-      return chapter?.isMarkdown ? text : text.trim();
+      const text = body.innerText.replace(/^\uFEFF/, '');
+      return chapter?.isMarkdown ? text.replace(/\s+$/, '') : text.trim();
     }
 
     function getDirectEditSnapshot() {
@@ -3176,6 +3234,8 @@
           if (chapter.isMarkdown && !chapter.isEpubHtml) {
             body.textContent = getChapterBodyContent(chapter);
             body.classList.add('raw-markdown');
+            body.style.fontSize = `${state.fontSize}px`;
+            body.style.lineHeight = state.lineHeight;
           }
         }
       }
