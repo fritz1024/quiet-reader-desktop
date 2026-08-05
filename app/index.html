@@ -172,6 +172,13 @@
     .mark-action.delete:hover { color: var(--warm); background: color-mix(in srgb, var(--warm) 10%, var(--surface)); border-color: color-mix(in srgb, var(--warm) 25%, var(--line)); }
     .mark-editor { margin-bottom: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }
     .panel-empty { padding: 22px 8px; color: var(--muted); font-size: 12px; line-height: 1.7; text-align: center; }
+    .context-menu { position: fixed; z-index: 1000; display: none; min-width: 188px; padding: 6px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 18px 55px var(--shadow); font-size: 13px; }
+    .context-menu.show { display: grid; gap: 2px; animation: panel-in .12s ease-out; }
+    .context-menu button { display: flex; width: 100%; min-height: 34px; align-items: center; gap: 10px; padding: 0 10px; color: var(--text); background: transparent; border: 0; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; text-align: left; }
+    .context-menu button:hover, .context-menu button:focus-visible { color: var(--accent); background: var(--accent-soft); outline: none; }
+    .context-menu button i { width: 14px; color: var(--muted); text-align: center; }
+    .context-menu button:hover i, .context-menu button:focus-visible i { color: var(--accent); }
+    .context-menu hr { height: 1px; margin: 4px 4px; background: var(--line); border: 0; }
     .mobile-more-button { display: none; }
     .mobile-more-panel { position: fixed; top: 80px; right: 20px; z-index: 100; display: none; width: 220px; max-width: calc(100vw - 24px); padding: 8px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 55px var(--shadow); }
     .mobile-more-panel.show { display: grid; gap: 3px; animation: panel-in .16s ease-out; }
@@ -239,6 +246,12 @@
     .chapter-item.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 15%, transparent); }
     .chapter-number { flex: 0 0 24px; padding-top: 1px; color: inherit; font-size: 11px; font-weight: 700; text-align: right; }
     .chapter-name { min-width: 0; overflow: hidden; font-size: 13px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+    .chapter-group-header { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 14px 4px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; user-select: none; border: none; background: none; text-align: left; transition: color .15s ease; }
+    .chapter-group-header:hover { color: var(--text); }
+    .chapter-group-header .group-chevron { font-size: 9px; transition: transform .2s ease; }
+    .chapter-group-header .group-chevron.collapsed { transform: rotate(-90deg); }
+    .chapter-group-header .group-count { font-weight: 400; opacity: 0.6; margin-left: auto; font-size: 10px; }
+    .chapter-group-list.collapsed { display: none; }
     .bottom-nav { --sidebar-width: 292px; position: fixed; left: 50%; bottom: 18px; z-index: 50; display: flex; gap: 3px; padding: 4px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 10px 30px var(--shadow); opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: left .24s ease, opacity .18s ease, transform .18s ease; backdrop-filter: blur(14px); }
     .bottom-nav.sidebar-open { left: calc(50% + var(--sidebar-width) / 2); }
     .reader-shell:hover ~ .bottom-nav, .bottom-nav:hover, .bottom-nav:focus-within { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
@@ -567,7 +580,7 @@
         <div><div class="text-[14px] font-bold">标点符号替换规则</div><div class="mt-1 text-[11px] text-muted">设置全局替换时要处理的标点</div></div>
         <button class="icon-button -mr-2" id="closeEditorBtn" title="关闭规则面板" aria-label="关闭规则面板"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="editor-note mb-4">这些规则会作用于当前书籍的全部章节；TXT 和 Markdown 的替换结果会保存回原文件，并自动保留最近 10 个备份。</div>
+      <div class="editor-note mb-4">全局替换会作用于当前书籍的全部章节；仅替换当前文件只会改动正在阅读的这一个文件。TXT 和 Markdown 的替换结果会保存回原文件，并自动保留最近 10 个备份。</div>
       <div class="setting-label">替换规则</div>
       <div class="mb-5 grid grid-cols-2 gap-2">
         <label class="edit-check"><input id="replaceQuotes" type="checkbox" checked><span>引号 “ ”</span></label>
@@ -575,8 +588,10 @@
         <label class="edit-check"><input id="replaceColons" type="checkbox" checked><span>冒号 ：</span></label>
         <label class="edit-check"><input id="replaceExclaims" type="checkbox" checked><span>感叹号 ！</span></label>
         <label class="edit-check"><input id="replaceQuestions" type="checkbox" checked><span>问号 ？</span></label>
+        <label class="edit-check"><input id="replaceEllipses" type="checkbox" checked><span>省略号 ……</span></label>
       </div>
       <button class="primary-button w-full" id="punctuationReplaceBtn" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i><span>全局替换标点</span></button>
+      <button class="secondary-button mt-2 w-full" id="punctuationReplaceCurrentBtn" type="button"><i class="fa-solid fa-file-pen"></i><span>仅替换当前文件</span></button>
       <button class="secondary-button mt-2 w-full" id="punctuationUndoBtn" type="button" disabled><i class="fa-solid fa-rotate-left"></i><span>撤销上次替换</span></button>
       <div class="editor-result mt-3" id="editorResult" aria-live="polite"></div>
     </section>
@@ -660,6 +675,15 @@
     </section>
 
     <div class="toast" id="copyToast"><i class="fa-solid fa-circle-check"></i><span>已复制到剪贴板</span></div>
+    <div class="context-menu" id="readerContextMenu" role="menu" aria-hidden="true">
+      <button type="button" data-menu="annotate"><i class="fa-solid fa-highlighter"></i><span>批注选中文字</span></button>
+      <button type="button" data-menu="copy"><i class="fa-solid fa-copy"></i><span>复制</span></button>
+      <button type="button" data-menu="search"><i class="fa-solid fa-magnifying-glass"></i><span>搜索选中文字</span></button>
+      <hr data-menu="sep-1">
+      <button type="button" data-menu="bookmark"><i class="fa-solid fa-bookmark"></i><span>添加书签</span></button>
+      <hr data-menu="sep-2">
+      <button type="button" data-menu="save-image"><i class="fa-solid fa-image"></i><span>保存图片</span></button>
+    </div>
     <div class="reader-dialog-backdrop" id="readerDialog" aria-hidden="true">
       <section class="reader-dialog" role="dialog" aria-modal="true" aria-labelledby="readerDialogTitle" aria-describedby="readerDialogMessage">
         <div class="reader-dialog-head">
@@ -754,6 +778,27 @@
     const bookFilePattern = /\.(txt|md|markdown|epub|zip)$/i;
     const maxBookFileBytes = 256 * 1024 * 1024;
     const maxTextFileBytes = 64 * 1024 * 1024;
+    const REFERENCE_FOLDER_KEYWORDS = ['设定', '世界观', '人物', '大纲', 'outline', 'notes', 'characters', 'worldbuilding', '参考', '资料', '背景', '草稿', '灵感', 'setting', 'reference', '附录', 'extras', '备注'];
+    const CONTENT_FOLDER_KEYWORDS = ['正文', '章节', 'chapters', 'content', '卷'];
+    const REFERENCE_FILE_KEYWORDS = ['readme', 'notes', '设定', '大纲', '人物', '世界观', 'outline', 'character', 'worldbuilding', '简介', '背景', '草稿', '灵感', 'setting', 'reference', '附录', '备注'];
+
+    function classifyFileCategory(relativePath) {
+      const parts = relativePath.split('/');
+      const filename = parts.pop() || '';
+      const nameWithoutExt = filename.replace(/\.[^.]+$/, '').toLowerCase();
+      let lastMatch = null;
+      for (let i = 0; i < parts.length; i++) {
+        const folderLower = parts[i].toLowerCase();
+        if (REFERENCE_FOLDER_KEYWORDS.some(k => folderLower.includes(k.toLowerCase()))) {
+          lastMatch = 'reference';
+        } else if (CONTENT_FOLDER_KEYWORDS.some(k => folderLower.includes(k.toLowerCase()))) {
+          lastMatch = 'content';
+        }
+      }
+      if (lastMatch) return lastMatch;
+      if (REFERENCE_FILE_KEYWORDS.some(k => nameWithoutExt.includes(k.toLowerCase()))) return 'reference';
+      return 'content';
+    }
     const maxZipEntries = 5000;
     const maxZipUncompressedBytes = 512 * 1024 * 1024;
     const maxEmbeddedImageBytes = 24 * 1024 * 1024;
@@ -924,7 +969,7 @@
         chapterEdits: { ...state.chapterEdits },
         chapterCount: state.chapters.length,
         wordCount: getBookWordCount(),
-        chapters: state.chapters.map(({ title, content, htmlContent, filename, sourceKey, sourceDocumentKey, sourceBodyStart, sourceBodyEnd, isMarkdown, isEpubHtml, isCover }) => ({
+        chapters: state.chapters.map(({ title, content, htmlContent, filename, sourceKey, sourceDocumentKey, sourceBodyStart, sourceBodyEnd, isMarkdown, isEpubHtml, isCover, category }) => ({
           title,
           ...(sourceBacked ? {} : { content, htmlContent }),
           filename,
@@ -934,7 +979,8 @@
           sourceBodyEnd,
           isMarkdown,
           isEpubHtml,
-          isCover
+          isCover,
+          category
         }))
       };
       if (isDesktop) {
@@ -1392,7 +1438,7 @@
       for await (const entry of handle.values()) {
         const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
         if (entry.kind === 'file') {
-          if (textFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath });
+          if (textFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category: classifyFileCategory(relativePath) });
         } else if (entry.kind === 'directory') {
           files.push(...await collectDirectoryFiles(entry, relativePath));
         }
@@ -1502,7 +1548,8 @@
         const result = await desktopApi.readFolder(folderPath);
         const items = (result.items || []).map(item => ({
           file: nativeFileFromResult(item),
-          relativePath: item.relativePath || item.name
+          relativePath: item.relativePath || item.name,
+          category: item.category || 'content'
         }));
         setFolderSource(null);
         const loaded = await loadFromFileItems(items, result.title || '我的小说', null, {
@@ -1609,7 +1656,10 @@
     function normalizeFileItems(files, pattern = textFilePattern) {
       return Array.from(files)
         .filter(file => pattern.test(file.name))
-        .map(file => ({ file, relativePath: file.webkitRelativePath || file.name }))
+        .map(file => {
+          const relativePath = file.webkitRelativePath || file.name;
+          return { file, relativePath, category: classifyFileCategory(relativePath) };
+        })
         .sort((a, b) => naturalCompare(a.relativePath, b.relativePath));
     }
 
@@ -1624,7 +1674,7 @@
 
     function getBookWordCount() {
       return state.chapters
-        .filter(chapter => !chapter.isCover)
+        .filter(chapter => !chapter.isCover && chapter.category !== 'reference')
         .reduce((total, chapter) => total + getWordCount(getChapterBodyContent(chapter), chapter.isMarkdown), 0);
     }
 
@@ -1675,6 +1725,12 @@
           result += '！'; changes += 1;
         } else if (character === '?' && options.questions) {
           result += '？'; changes += 1;
+        } else if (character === '.' && options.ellipses && source[index + 1] === '.') {
+          let dotCount = 0;
+          while (index + dotCount < source.length && source[index + dotCount] === '.') dotCount += 1;
+          result += '……';
+          changes += 1;
+          index += dotCount - 1;
         } else {
           result += character;
         }
@@ -1688,7 +1744,8 @@
         commas: $('replaceCommas').checked,
         colons: $('replaceColons').checked,
         exclaims: $('replaceExclaims').checked,
-        questions: $('replaceQuestions').checked
+        questions: $('replaceQuestions').checked,
+        ellipses: $('replaceEllipses').checked
       };
     }
 
@@ -1699,6 +1756,7 @@
       $('replaceColons').checked = Boolean(options.colons);
       $('replaceExclaims').checked = Boolean(options.exclaims);
       $('replaceQuestions').checked = Boolean(options.questions);
+      $('replaceEllipses').checked = Boolean(options.ellipses);
     }
 
     function normalizeChapters(chapters, options) {
@@ -1787,8 +1845,9 @@
       }));
     }
 
-    async function saveAllSourceDocuments() {
-      const files = getSourceWriteTargets();
+    async function saveAllSourceDocuments(onlyKeys = null) {
+      const allowed = onlyKeys ? new Set(onlyKeys) : null;
+      const files = getSourceWriteTargets().filter(file => !allowed || allowed.has(file.relativePath));
       if (!files.length) return 0;
       await desktopApi.writeSourceFiles({ sourcePath: state.sourcePath, sourceType: state.sourceType, files });
       return files.length;
@@ -2142,20 +2201,43 @@
       $('editorResult').textContent = message;
     }
 
-    async function replacePunctuation() {
+    function getCurrentFileChapters() {
+      const current = state.chapters[state.currentChapter];
+      if (!current) return [];
+      if (current.isEpubHtml) return [current];
+      const key = getChapterSourceDocumentKey(current);
+      if (!key) return [current];
+      return state.chapters.filter(chapter => !chapter.isEpubHtml && getChapterSourceDocumentKey(chapter) === key);
+    }
+
+    function getCurrentFileLabel() {
+      const current = state.chapters[state.currentChapter];
+      const path = current?.sourceDocumentKey || current?.filename || '';
+      return String(path).split('/').pop() || current?.title || '当前文件';
+    }
+
+    async function replacePunctuation(scope = 'all') {
       if (!state.chapters.length || state.demo) { updateEditorResult('请先导入真实书籍，再进行文本编辑。'); return; }
       const options = getPunctuationOptions();
       if (!Object.values(options).some(Boolean)) { updateEditorResult('请至少选择一种标点。'); return; }
       if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText && !(await saveDirectEdit(false))) return;
 
+      const currentOnly = scope === 'current';
+      const targets = currentOnly ? getCurrentFileChapters() : state.chapters;
+      if (!targets.length) { updateEditorResult('没有找到当前文件对应的章节。'); return; }
+      const targetChapters = new Set(targets);
+      const targetSourceKeys = new Set(targets.map(chapter => getChapterSourceDocumentKey(chapter)).filter(Boolean));
+
       const previousScroll = readerContainer.scrollTop;
       const snapshot = {
         chapters: cloneChapters(state.chapters),
         options: state.punctuationOptions ? { ...state.punctuationOptions } : null,
-        sourceDocuments: Object.fromEntries(Object.entries(state.sourceDocuments).map(([key, value]) => [key, { ...value }]))
+        sourceDocuments: Object.fromEntries(Object.entries(state.sourceDocuments).map(([key, value]) => [key, { ...value }])),
+        savedKeys: null
       };
       let totalChanges = 0;
       state.chapters = state.chapters.map(chapter => {
+        if (!targetChapters.has(chapter)) return chapter;
         const titleResult = canSaveChapterToSource(chapter)
           ? { text: chapter.title, changes: 0 }
           : normalizePunctuation(chapter.title, options);
@@ -2168,16 +2250,21 @@
       });
 
       state.punctuationHistory = snapshot;
-      state.punctuationOptions = options;
+      if (!currentOnly) state.punctuationOptions = options;
       let savedSourceFiles = 0;
       try {
+        const writtenKeys = new Set();
         for (const chapter of state.chapters) {
           if (!canSaveChapterToSource(chapter)) continue;
+          const sourceKey = getChapterSourceDocumentKey(chapter);
+          if (currentOnly && !targetSourceKeys.has(sourceKey)) continue;
           const normalizedBody = getChapterBodyContent(chapter);
           const update = buildSourceDocumentUpdate(chapter, normalizedBody);
           applySourceDocumentUpdate(chapter, normalizedBody, update);
+          writtenKeys.add(sourceKey);
         }
-        savedSourceFiles = await saveAllSourceDocuments();
+        snapshot.savedKeys = currentOnly ? Array.from(writtenKeys) : null;
+        savedSourceFiles = await saveAllSourceDocuments(snapshot.savedKeys);
       } catch (error) {
         console.error(error);
         state.chapters = snapshot.chapters;
@@ -2198,7 +2285,10 @@
       if (state.directEditing) state.directEditOriginalText = getDirectEditSnapshot();
       requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
       await saveLibrarySnapshot();
-      updateEditorResult(totalChanges ? `已替换 ${formatNumber(totalChanges)} 处标点${savedSourceFiles ? `，并已写回 ${savedSourceFiles} 个原文件` : ''}。` : '没有发现需要替换的英文标点。');
+      const scopeLabel = currentOnly ? `当前文件《${getCurrentFileLabel()}》` : '全书';
+      updateEditorResult(totalChanges
+        ? `已在${scopeLabel}替换 ${formatNumber(totalChanges)} 处标点${savedSourceFiles ? `，并已写回 ${savedSourceFiles} 个原文件` : ''}。`
+        : `${scopeLabel}没有发现需要替换的英文标点。`);
       showToast(totalChanges ? `已规范 ${formatNumber(totalChanges)} 处标点` : '没有需要替换的标点');
     }
 
@@ -2213,7 +2303,7 @@
       state.sourceDocuments = Array.isArray(snapshot) ? state.sourceDocuments : snapshot.sourceDocuments;
       setPunctuationOptions(state.punctuationOptions);
       try {
-        await saveAllSourceDocuments();
+        await saveAllSourceDocuments(Array.isArray(snapshot) ? null : snapshot.savedKeys);
       } catch (error) {
         console.error(error);
         state.chapters = currentChapters;
@@ -2380,7 +2470,7 @@
       return match ? markdownToPlainText(match[1]) : '';
     }
 
-    function chaptersFromTextContent(content, filename, relativePath = filename) {
+    function chaptersFromTextContent(content, filename, relativePath = filename, category = 'content') {
       const displayFilename = String(filename || relativePath || '本地文件').split('/').pop();
       const isMarkdown = isMarkdownFile(displayFilename);
       const internal = isMarkdown ? parseMarkdownChapters(content, displayFilename) : parseInternalChapters(content, displayFilename);
@@ -2389,7 +2479,8 @@
           ...chapter,
           filename: relativePath,
           sourceKey: `${relativePath}\u0000${chapter.title}\u0000${index}`,
-          sourceDocumentKey: relativePath
+          sourceDocumentKey: relativePath,
+          category
         }));
       }
       const leadingChapter = isMarkdown ? extractLeadingMarkdownChapter(content) : extractLeadingPlainChapter(content);
@@ -2403,7 +2494,8 @@
         isMarkdown,
         sourceDocumentKey: relativePath,
         sourceBodyStart: bodyStart,
-        sourceBodyEnd: String(content || '').length
+        sourceBodyEnd: String(content || '').length,
+        category
       }];
     }
 
@@ -2678,7 +2770,7 @@
         try {
           const bytes = await entry.async('uint8array');
           const content = decodeTextBuffer(bytes);
-          chapters.push(...chaptersFromTextContent(content, entry.name, entry.name));
+          chapters.push(...chaptersFromTextContent(content, entry.name, entry.name, classifyFileCategory(entry.name)));
         } catch (error) {
           console.warn('Unable to read ZIP text entry:', entry.name, error);
           failedEntries.push({ path: entry.name, reason: getImportDiagnosticReason(error, '文本文件无法读取') });
@@ -2720,7 +2812,8 @@
       let content = (chapter.content || '').replace(/^\uFEFF/, '');
       if (chapter.isMarkdown) return content.replace(/^(?:[ \t]*\r?\n)*[ \t]*#\s+.*?[ \t]*#?[ \t]*(?:\r?\n|$)/, '').trimStart();
       const heading = content.match(/^\s*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇][^\r\n]*|Chapter\s+\d+[^\r\n]*))[ \t]*(?:\r?\n|$)/i);
-      return (heading && isReasonablePlainChapterTitle(heading[1]) ? content.slice(heading[0].length) : content).trimStart();
+      const headingMatchesTitle = heading && String(heading[1]).trim() === String(chapter.title || '').trim();
+      return (headingMatchesTitle && isReasonablePlainChapterTitle(heading[1]) ? content.slice(heading[0].length) : content).trimStart();
     }
 
     function renderMarkdownInline(text) {
@@ -2786,7 +2879,7 @@
     function getExportContent(scope = state.exportScope, format = state.exportFormat) {
       const currentChapter = state.chapters[state.currentChapter];
       const chapters = scope === 'book'
-        ? state.chapters.filter(chapter => !chapter.isCover)
+        ? state.chapters.filter(chapter => !chapter.isCover && chapter.category !== 'reference')
         : (currentChapter && !currentChapter.isCover ? [currentChapter] : []);
       const separator = format === 'markdown' ? '\n\n' : '\n\n';
       return chapters.map((chapter, index) => {
@@ -3187,20 +3280,164 @@
       showToast('已删除标记');
     }
 
+    const contextMenu = $('readerContextMenu');
+    let contextMenuImageSrc = '';
+
+    function hideContextMenu() {
+      if (!contextMenu.classList.contains('show')) return;
+      contextMenu.classList.remove('show');
+      contextMenuImageSrc = '';
+    }
+
+    function showContextMenu(x, y, { hasSelection, isImage }) {
+      contextMenu.querySelectorAll('[data-menu]').forEach(item => {
+        const kind = item.dataset.menu;
+        const show = (kind === 'annotate' && hasSelection)
+          || (kind === 'copy' && hasSelection)
+          || (kind === 'search' && hasSelection)
+          || (kind === 'sep-1' && hasSelection)
+          || (kind === 'bookmark' && !state.demo && state.chapters.length)
+          || (kind === 'sep-2' && isImage)
+          || (kind === 'save-image' && isImage);
+        item.hidden = !show;
+      });
+      contextMenu.style.visibility = 'hidden';
+      contextMenu.classList.add('show');
+      const rect = contextMenu.getBoundingClientRect();
+      const maxLeft = window.innerWidth - rect.width - 8;
+      const maxTop = window.innerHeight - rect.height - 8;
+      contextMenu.style.left = `${Math.max(8, Math.min(x, maxLeft))}px`;
+      contextMenu.style.top = `${Math.max(8, Math.min(y, maxTop))}px`;
+      contextMenu.style.visibility = '';
+    }
+
+    async function copySelectionText() {
+      const text = String(window.getSelection()?.toString() || '');
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('已复制选中文字');
+      } catch {
+        showToast('复制失败');
+      }
+    }
+
+    function searchSelectionText() {
+      const text = String(window.getSelection()?.toString() || '').trim();
+      if (!text) return;
+      openFloatingPanel('search', $('searchInput'));
+      $('searchInput').value = text;
+      updateSearch(text);
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const match = /^data:([^;,]+);base64,(.+)$/.exec(dataUrl);
+      if (!match) return null;
+      const binary = atob(match[2]);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: match[1] });
+    }
+
+    function guessImageExtension(src) {
+      const match = /^data:image\/([a-zA-Z0-9+.-]+)[;,]/.exec(src);
+      if (!match) return 'png';
+      const type = match[1].toLowerCase();
+      if (type === 'jpeg') return 'jpg';
+      if (type === 'svg+xml') return 'svg';
+      return type.replace(/[^a-z0-9]/g, '') || 'png';
+    }
+
+    async function saveContextMenuImage() {
+      const src = contextMenuImageSrc;
+      if (!src) return;
+      try {
+        let blob;
+        if (/^data:/.test(src)) blob = dataUrlToBlob(src);
+        else blob = await (await fetch(src)).blob();
+        if (!blob) { showToast('无法读取图片数据'); return; }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `image-${Date.now()}.${guessImageExtension(src)}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) {
+        console.error(error);
+        showToast('保存图片失败');
+      }
+    }
+
+    let sidebarCollapsedGroups = {};
+
     function renderChapterList() {
       chapterList.innerHTML = '';
-      chapterCount.textContent = `${state.chapters.length} 章`;
       $('sidebarBookName').textContent = state.bookTitle || '未命名书籍';
-      $('bookWordCount').textContent = `正文 ${formatNumber(getBookWordCount())} 字`;
       $('emptyChapterList').classList.toggle('hidden', state.chapters.length > 0);
+
+      // Group chapters by category
+      const groups = {};
       state.chapters.forEach((chapter, index) => {
-        const li = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button'; button.className = `chapter-item ${index === state.currentChapter ? 'active' : ''}`;
-        button.innerHTML = `<span class="chapter-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span>`;
-        button.addEventListener('click', () => selectChapter(index));
-        li.appendChild(button); chapterList.appendChild(li);
+        const cat = chapter.category || 'content';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push({ chapter, index });
       });
+
+      // Determine display order: content first, then reference
+      const groupOrder = ['content', 'reference'].filter(cat => groups[cat]?.length > 0);
+      const hasReference = groups.reference?.length > 0;
+
+      // Update chapter count display
+      const contentCount = groups.content?.length || 0;
+      const refCount = groups.reference?.length || 0;
+      chapterCount.textContent = hasReference ? `${contentCount} 章 / ${refCount} 设定` : `${state.chapters.length} 章`;
+      $('bookWordCount').textContent = `正文 ${formatNumber(getBookWordCount())} 字`;
+
+      for (const cat of groupOrder) {
+        const items = groups[cat];
+        const isCollapsed = sidebarCollapsedGroups[cat] === true;
+        const isRef = cat === 'reference';
+        const groupLabel = isRef ? '设定' : '正文';
+
+        // Group header
+        const headerLi = document.createElement('li');
+        const headerBtn = document.createElement('button');
+        headerBtn.type = 'button';
+        headerBtn.className = 'chapter-group-header';
+        headerBtn.innerHTML = `<i class="fa-solid ${isRef ? 'fa-book-bookmark' : 'fa-feather-pointed'} group-icon" style="font-size:11px;opacity:0.5"></i><span>${groupLabel}</span><span class="group-count">${items.length}</span><i class="fa-solid fa-chevron-down group-chevron ${isCollapsed ? 'collapsed' : ''}"></i>`;
+        headerBtn.addEventListener('click', () => {
+          sidebarCollapsedGroups[cat] = !sidebarCollapsedGroups[cat];
+          renderChapterList();
+        });
+        headerLi.appendChild(headerBtn);
+        chapterList.appendChild(headerLi);
+
+        // Group list
+        const listLi = document.createElement('li');
+        const groupUl = document.createElement('ul');
+        groupUl.className = `chapter-group-list ${isCollapsed ? 'collapsed' : ''}`;
+        groupUl.style.listStyle = 'none';
+
+        items.forEach(({ chapter, index }, groupIndex) => {
+          const li = document.createElement('li');
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `chapter-item ${index === state.currentChapter ? 'active' : ''}`;
+          if (isRef) {
+            button.innerHTML = `<i class="fa-solid fa-file-lines" style="flex:0 0 16px;font-size:11px;opacity:0.5;text-align:center;padding-top:2px"></i><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span>`;
+          } else {
+            button.innerHTML = `<span class="chapter-number">${String(groupIndex + 1).padStart(2, '0')}</span><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span>`;
+          }
+          button.addEventListener('click', () => selectChapter(index));
+          li.appendChild(button);
+          groupUl.appendChild(li);
+        });
+
+        listLi.appendChild(groupUl);
+        chapterList.appendChild(listLi);
+      }
     }
 
     function renderChapter(index, { saveProgress: shouldSaveProgress = true, refreshChapterSearch = true } = {}) {
@@ -3267,6 +3504,7 @@
     async function loadParsedChapters(chapters, bookTitle, folderHandle = null, options = {}) {
       if (!chapters.length) { showToast('没有解析出可阅读的章节'); return false; }
       if (state.directEditing && !(await exitDirectEditing())) return false;
+      if (!options.isUpdate && !options.restoring) sidebarCollapsedGroups = {};
       syncEditedChapterEdits();
       const parsedChapters = inferChapterTypes(chapters);
       const previousEdits = { ...state.chapterEdits };
@@ -3342,7 +3580,7 @@
         const relativePath = item.relativePath || item.file.webkitRelativePath || item.file.name;
         const content = await readFile(item.file);
         sourceDocuments[relativePath] = { content, encoding: item.file.readerEncoding || '', bom: Boolean(item.file.readerBom) };
-        chapters.push(...chaptersFromTextContent(content, item.file.name, relativePath));
+        chapters.push(...chaptersFromTextContent(content, item.file.name, relativePath, item.category || 'content'));
       }
       return loadParsedChapters(chapters, bookTitle, folderHandle, { ...options, sourceDocuments });
     }
@@ -3698,7 +3936,8 @@
     readerDialog.addEventListener('click', event => {
       if (event.target === readerDialog) closeReaderDialog('keep');
     });
-    $('punctuationReplaceBtn').addEventListener('click', replacePunctuation);
+    $('punctuationReplaceBtn').addEventListener('click', () => replacePunctuation('all'));
+    $('punctuationReplaceCurrentBtn').addEventListener('click', () => replacePunctuation('current'));
     $('punctuationUndoBtn').addEventListener('click', undoPunctuation);
     $('settingsBtn').addEventListener('click', event => {
       event.stopPropagation();
@@ -3754,12 +3993,14 @@
       });
     });
     document.addEventListener('click', event => {
+      if (!contextMenu.contains(event.target)) hideContextMenu();
+      const selectionActive = !window.getSelection()?.isCollapsed;
       if (!settingsPanel.contains(event.target) && !$('settingsBtn').contains(event.target)) settingsPanel.classList.remove('show');
       if (!importPanel.contains(event.target) && !$('openImportBtn').contains(event.target) && !folderUploadBox.contains(event.target)) toggleImportPanel(false);
       if (!editorPanel.contains(event.target) && !$('editorBtn').contains(event.target) && !$('punctuationRulesBtn').contains(event.target)) editorPanel.classList.remove('show');
       if (!backupPanel.contains(event.target) && !$('sourceBackupBtn').contains(event.target)) backupPanel.classList.remove('show');
       if (!searchPanel.contains(event.target) && !$('searchBtn').contains(event.target) && !$('mobileSearchBtn').contains(event.target)) searchPanel.classList.remove('show');
-      if (!marksPanel.contains(event.target) && !$('marksBtn').contains(event.target) && !$('mobileMarksBtn').contains(event.target)) marksPanel.classList.remove('show');
+      if (!selectionActive && !marksPanel.contains(event.target) && !$('marksBtn').contains(event.target) && !$('mobileMarksBtn').contains(event.target)) marksPanel.classList.remove('show');
       if (!exportPanel.contains(event.target) && !$('exportBtn').contains(event.target) && !$('mobileExportBtn').contains(event.target)) exportPanel.classList.remove('show');
       if (!mobileMorePanel.contains(event.target) && !$('mobileMoreBtn').contains(event.target)) toggleMobileMorePanel(false);
     });
@@ -3774,6 +4015,31 @@
     }));
     $('addBookmarkBtn').addEventListener('click', addBookmark);
     $('addAnnotationBtn').addEventListener('click', addAnnotation);
+    readerContent.addEventListener('contextmenu', event => {
+      if (state.directEditing) return;
+      const image = event.target.closest('img');
+      const isImage = Boolean(image && readerContent.contains(image));
+      const selection = window.getSelection();
+      const hasSelection = Boolean(selection && !selection.isCollapsed && selection.toString().trim().length && readerContent.contains(selection.anchorNode));
+      if (!hasSelection && !isImage && !state.chapters.length) return;
+      event.preventDefault();
+      contextMenuImageSrc = isImage ? image.getAttribute('src') || '' : '';
+      showContextMenu(event.clientX, event.clientY, { hasSelection, isImage });
+    });
+    contextMenu.addEventListener('click', event => {
+      const button = event.target.closest('button[data-menu]');
+      if (!button) return;
+      const action = button.dataset.menu;
+      hideContextMenu();
+      if (action === 'annotate') addAnnotation();
+      else if (action === 'copy') copySelectionText();
+      else if (action === 'search') searchSelectionText();
+      else if (action === 'bookmark') addBookmark();
+      else if (action === 'save-image') saveContextMenuImage();
+    });
+    window.addEventListener('scroll', hideContextMenu, true);
+    window.addEventListener('resize', hideContextMenu);
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') hideContextMenu(); });
     document.querySelectorAll('[data-export-scope]').forEach(button => button.addEventListener('click', () => {
       state.exportScope = button.dataset.exportScope === 'book' ? 'book' : 'current';
       updateExportControls();
