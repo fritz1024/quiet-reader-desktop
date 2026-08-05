@@ -209,7 +209,21 @@
     .edit-check:has(input:checked) { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); }
     .edit-check input { width: 14px; height: 14px; accent-color: var(--accent); }
     .editor-note { padding: 10px 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; font-size: 11px; line-height: 1.65; }
-    .editor-result { min-height: 18px; color: var(--accent); font-size: 11px; font-weight: 600; line-height: 1.6; }
+.custom-rules-section { margin-bottom: 16px; }
+    .custom-rules-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .custom-rule-item { display: flex; align-items: center; gap: 8px; padding: 6px 9px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; font-size: 12px; }
+    .custom-rule-item .rule-from { color: var(--warm); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+    .custom-rule-item .rule-arrow { color: var(--muted); flex-shrink: 0; }
+    .custom-rule-item .rule-to { color: var(--accent); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+    .custom-rule-item .rule-toggle { width: 14px; height: 14px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+    .custom-rule-item .rule-delete { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 4px; flex-shrink: 0; border-radius: 4px; transition: color .15s, background .15s; }
+    .custom-rule-item .rule-delete:hover { color: var(--warm); background: color-mix(in srgb, var(--warm) 12%, transparent); }
+    .custom-rule-add { display: flex; gap: 6px; align-items: center; }
+    .custom-rule-add input { flex: 1; min-width: 0; padding: 6px 8px; font-size: 12px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-family: inherit; }
+    .custom-rule-add input:focus { outline: none; border-color: var(--accent); }
+    .custom-rule-add .rule-add-btn { flex-shrink: 0; padding: 6px 10px; font-size: 12px; border-radius: 6px; cursor: pointer; }
+    .custom-rules-empty { color: var(--muted); font-size: 11px; text-align: center; padding: 8px 0; }
+        .editor-result { min-height: 18px; color: var(--accent); font-size: 11px; font-weight: 600; line-height: 1.6; }
     .upload-zone { position: relative; min-height: 214px; padding: 30px; text-align: center; background: color-mix(in srgb, var(--surface) 86%, var(--accent-soft)); border: 1px dashed color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: 14px; cursor: pointer; transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease; }
     .upload-zone:hover, .upload-zone.dragover { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 14px 30px var(--shadow); transform: translateY(-2px); }
     .upload-icon { display: grid; width: 50px; height: 50px; margin: 0 auto 16px; place-items: center; color: var(--accent); background: var(--surface); border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 7px 17px var(--shadow); font-size: 19px; }
@@ -272,6 +286,8 @@
      .reader-dialog-actions .secondary-button, .reader-dialog-actions .primary-button { min-height: 36px; padding: 0 12px; font-size: 12px; }
      .reader-dialog-actions .dialog-discard { color: var(--warm); border-color: color-mix(in srgb, var(--warm) 30%, var(--line)); }
      .reader-dialog-actions .dialog-discard:hover { color: #fff; background: var(--warm); border-color: var(--warm); }
+    .replace-textarea { width: 100%; margin-top: 16px; padding: 10px 12px; font-size: 14px; line-height: 1.6; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; resize: vertical; font-family: inherit; box-sizing: border-box; }
+    .replace-textarea:focus { outline: none; border-color: var(--warm); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warm) 20%, transparent); }
      .loading { position: fixed; inset: 0; z-index: 190; display: none; place-items: center; background: color-mix(in srgb, var(--bg) 60%, transparent); backdrop-filter: blur(3px); }
     .loading.show { display: grid; }
     .spinner { width: 19px; height: 19px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
@@ -590,6 +606,16 @@
         <label class="edit-check"><input id="replaceQuestions" type="checkbox" checked><span>问号 ？</span></label>
         <label class="edit-check"><input id="replaceEllipses" type="checkbox" checked><span>省略号 ……</span></label>
       </div>
+      <div class="setting-label">自定义替换规则</div>
+      <div class="custom-rules-section">
+        <div class="custom-rules-list" id="customRulesList"></div>
+        <div class="custom-rule-add">
+          <input type="text" id="customRuleFrom" placeholder="原文" maxlength="50">
+          <i class="fa-solid fa-arrow-right text-[11px] text-muted"></i>
+          <input type="text" id="customRuleTo" placeholder="替换为" maxlength="50">
+          <button class="secondary-button rule-add-btn" id="customRuleAddBtn" type="button"><i class="fa-solid fa-plus"></i><span>添加</span></button>
+        </div>
+      </div>
       <button class="primary-button w-full" id="punctuationReplaceBtn" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i><span>全局替换标点</span></button>
       <button class="secondary-button mt-2 w-full" id="punctuationReplaceCurrentBtn" type="button"><i class="fa-solid fa-file-pen"></i><span>仅替换当前文件</span></button>
       <button class="secondary-button mt-2 w-full" id="punctuationUndoBtn" type="button" disabled><i class="fa-solid fa-rotate-left"></i><span>撤销上次替换</span></button>
@@ -676,9 +702,9 @@
 
     <div class="toast" id="copyToast"><i class="fa-solid fa-circle-check"></i><span>已复制到剪贴板</span></div>
     <div class="context-menu" id="readerContextMenu" role="menu" aria-hidden="true">
-      <button type="button" data-menu="annotate"><i class="fa-solid fa-highlighter"></i><span>批注选中文字</span></button>
       <button type="button" data-menu="copy"><i class="fa-solid fa-copy"></i><span>复制</span></button>
       <button type="button" data-menu="search"><i class="fa-solid fa-magnifying-glass"></i><span>搜索选中文字</span></button>
+      <button type="button" data-menu="replace"><i class="fa-solid fa-pen"></i><span>替换选中文字</span></button>
       <hr data-menu="sep-1">
       <button type="button" data-menu="bookmark"><i class="fa-solid fa-bookmark"></i><span>添加书签</span></button>
       <hr data-menu="sep-2">
@@ -697,6 +723,22 @@
           <button class="secondary-button" id="dialogKeepEditingBtn" type="button">继续编辑</button>
           <button class="secondary-button dialog-discard" id="dialogDiscardBtn" type="button">放弃修改</button>
           <button class="primary-button" id="dialogSaveBtn" type="button"><i class="fa-solid fa-floppy-disk"></i><span>保存并退出</span></button>
+        </div>
+      </section>
+    </div>
+    <div class="reader-dialog-backdrop" id="replaceDialog" aria-hidden="true">
+      <section class="reader-dialog" role="dialog" aria-modal="true" aria-labelledby="replaceDialogTitle">
+        <div class="reader-dialog-head">
+          <div class="reader-dialog-icon"><i class="fa-solid fa-pen"></i></div>
+          <div class="min-w-0">
+            <div class="reader-dialog-title" id="replaceDialogTitle">替换选中文字</div>
+            <div class="reader-dialog-message" id="replaceDialogHint">修改下方文本后点击确认替换</div>
+          </div>
+        </div>
+        <textarea id="replaceTextarea" class="replace-textarea" rows="4" spellcheck="false"></textarea>
+        <div class="reader-dialog-actions">
+          <button class="secondary-button" id="replaceCancelBtn" type="button">取消</button>
+          <button class="primary-button" id="replaceConfirmBtn" type="button"><i class="fa-solid fa-check"></i><span>确认替换</span></button>
         </div>
       </section>
     </div>
@@ -740,7 +782,7 @@
     const state = {
       chapters: [], currentChapter: 0, fontSize: 18, lineHeight: 2.05,
       theme: 'default', fontFamily: 'serif', bookTitle: '', demo: false, folderHandle: null,
-      punctuationHistory: null, punctuationOptions: null, chapterEdits: {}, directEditing: false, directEditOriginalText: '',
+      punctuationHistory: null, punctuationOptions: null, customReplaceRules: [], chapterEdits: {}, directEditing: false, directEditOriginalText: '',
       sourcePath: '', sourceType: '', sourceDocuments: {}, libraryIdentity: '', sourceAvailable: false, sourceMissing: false,
       search: { query: '', scope: 'chapter', matches: [], currentIndex: -1 }, marks: [], readingPreset: 'comfortable',
       readerPaperPadding: readingPresets.comfortable.paperPadding,
@@ -966,6 +1008,7 @@
         sourceAvailable: state.sourceAvailable,
         sourceMissing: state.sourceMissing,
         punctuationOptions: state.punctuationOptions ? { ...state.punctuationOptions } : null,
+        customReplaceRules: Array.isArray(state.customReplaceRules) ? [...state.customReplaceRules] : [],
         chapterEdits: { ...state.chapterEdits },
         chapterCount: state.chapters.length,
         wordCount: getBookWordCount(),
@@ -1759,6 +1802,75 @@
       $('replaceEllipses').checked = Boolean(options.ellipses);
     }
 
+    function getCustomRules() {
+      return Array.isArray(state.customReplaceRules) ? state.customReplaceRules : [];
+    }
+
+    function renderCustomRules() {
+      const list = $('customRulesList');
+      if (!list) return;
+      const rules = getCustomRules();
+      if (!rules.length) {
+        list.innerHTML = '<div class="custom-rules-empty">还没有自定义规则，在下方添加</div>';
+        return;
+      }
+      list.innerHTML = rules.map((rule, idx) => {
+        const fromEsc = escapeHtml(rule.from);
+        const toEsc = escapeHtml(rule.to);
+        return `<div class="custom-rule-item" data-rule-index="${idx}">`
+          + `<input type="checkbox" class="rule-toggle" data-action="toggle" ${rule.enabled !== false ? "checked" : ""}>`
+          + `<span class="rule-from" title="${fromEsc}">${fromEsc}</span>`
+          + `<span class="rule-arrow"><i class="fa-solid fa-arrow-right"></i></span>`
+          + `<span class="rule-to" title="${toEsc}">${toEsc}</span>`
+          + `<button type="button" class="rule-delete" data-action="delete" title="删除"><i class="fa-solid fa-trash-can"></i></button>`
+          + `</div>`;
+      }).join("");
+    }
+
+    function addCustomRule(from, to) {
+      if (!from || from === to) return false;
+      const rules = getCustomRules();
+      if (rules.some(r => r.from === from)) return false;
+      rules.push({ from, to, enabled: true });
+      state.customReplaceRules = rules;
+      saveSettings();
+      renderCustomRules();
+      return true;
+    }
+
+    function removeCustomRule(index) {
+      const rules = getCustomRules();
+      if (index < 0 || index >= rules.length) return;
+      rules.splice(index, 1);
+      state.customReplaceRules = rules;
+      saveSettings();
+      renderCustomRules();
+    }
+
+    function toggleCustomRule(index) {
+      const rules = getCustomRules();
+      if (index < 0 || index >= rules.length) return;
+      rules[index].enabled = rules[index].enabled === false ? true : false;
+      state.customReplaceRules = rules;
+      saveSettings();
+    }
+
+    function applyCustomRules(text) {
+      const rules = getCustomRules();
+      if (!rules.length) return { text, changes: 0 };
+      let result = text;
+      let changes = 0;
+      for (const rule of rules) {
+        if (rule.enabled === false || !rule.from) continue;
+        let idx = result.indexOf(rule.from);
+        while (idx >= 0) {
+          result = result.substring(0, idx) + rule.to + result.substring(idx + rule.from.length);
+          changes += 1;
+          idx = result.indexOf(rule.from, idx + rule.to.length);
+        }
+      }
+      return { text: result, changes };
+    }
     function normalizeChapters(chapters, options) {
       if (!options || !Object.values(options).some(Boolean)) return chapters;
       return chapters.map(chapter => {
@@ -2219,7 +2331,8 @@
     async function replacePunctuation(scope = 'all') {
       if (!state.chapters.length || state.demo) { updateEditorResult('请先导入真实书籍，再进行文本编辑。'); return; }
       const options = getPunctuationOptions();
-      if (!Object.values(options).some(Boolean)) { updateEditorResult('请至少选择一种标点。'); return; }
+      const hasCustomRules = getCustomRules().some(r => r.enabled !== false && r.from);
+      if (!Object.values(options).some(Boolean) && !hasCustomRules) { updateEditorResult('请至少选择一种标点或添加自定义规则。'); return; }
       if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText && !(await saveDirectEdit(false))) return;
 
       const currentOnly = scope === 'current';
@@ -2245,8 +2358,14 @@
         const contentResult = chapter.isEpubHtml
           ? { text: getEpubHtmlText(htmlResult.html), changes: 0 }
           : normalizePunctuation(chapter.content, options);
-        totalChanges += titleResult.changes + contentResult.changes + (htmlResult?.changes || 0);
-        return { ...chapter, title: titleResult.text, content: contentResult.text, htmlContent: htmlResult?.html ?? chapter.htmlContent };
+        const customTitle = canSaveChapterToSource(chapter)
+                  ? { text: chapter.title, changes: 0 }
+                  : applyCustomRules(titleResult.text);
+                const customContent = chapter.isEpubHtml
+                  ? { text: contentResult.text, changes: 0 }
+                  : applyCustomRules(contentResult.text);
+                totalChanges += customTitle.changes + customContent.changes;
+                return { ...chapter, title: customTitle.text, content: customContent.text, htmlContent: htmlResult?.html ?? chapter.htmlContent };
       });
 
       state.punctuationHistory = snapshot;
@@ -2272,6 +2391,7 @@
         state.punctuationHistory = null;
         state.punctuationOptions = snapshot.options;
         setPunctuationOptions(state.punctuationOptions);
+      renderCustomRules();
         renderChapter(state.currentChapter);
         requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
         updateEditorResult(error?.message || '标点替换未能保存到原文件。');
@@ -2302,6 +2422,7 @@
       state.punctuationOptions = Array.isArray(snapshot) ? null : snapshot.options;
       state.sourceDocuments = Array.isArray(snapshot) ? state.sourceDocuments : snapshot.sourceDocuments;
       setPunctuationOptions(state.punctuationOptions);
+      renderCustomRules();
       try {
         await saveAllSourceDocuments(Array.isArray(snapshot) ? null : snapshot.savedKeys);
       } catch (error) {
@@ -2310,6 +2431,7 @@
         state.sourceDocuments = currentSourceDocuments;
         state.punctuationOptions = snapshot.options;
         setPunctuationOptions(state.punctuationOptions);
+      renderCustomRules();
         renderChapter(state.currentChapter);
         requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
         updateEditorResult(error?.message || '无法将撤销结果保存到原文件。');
@@ -3292,9 +3414,9 @@
     function showContextMenu(x, y, { hasSelection, isImage }) {
       contextMenu.querySelectorAll('[data-menu]').forEach(item => {
         const kind = item.dataset.menu;
-        const show = (kind === 'annotate' && hasSelection)
-          || (kind === 'copy' && hasSelection)
+        const show = (kind === 'copy' && hasSelection)
           || (kind === 'search' && hasSelection)
+          || (kind === 'replace' && hasSelection)
           || (kind === 'sep-1' && hasSelection)
           || (kind === 'bookmark' && !state.demo && state.chapters.length)
           || (kind === 'sep-2' && isImage)
@@ -3328,6 +3450,101 @@
       openFloatingPanel('search', $('searchInput'));
       $('searchInput').value = text;
       updateSearch(text);
+    }
+
+    let _replaceSavedSelection = null;
+
+    function replaceSelectionText() {
+      const selection = window.getSelection();
+      const text = String(selection?.toString() || '');
+      if (!text) return;
+      if (selection.rangeCount) _replaceSavedSelection = selection.getRangeAt(0).cloneRange();
+      else _replaceSavedSelection = null;
+      const dialog = $('replaceDialog');
+      const textarea = $('replaceTextarea');
+      textarea.value = text;
+      dialog.classList.add('show');
+      dialog.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => { textarea.focus(); textarea.select(); });
+    }
+
+    function closeReplaceDialog() {
+      const dialog = $('replaceDialog');
+      dialog.classList.remove('show');
+      dialog.setAttribute('aria-hidden', 'true');
+      _replaceSavedSelection = null;
+    }
+
+    async function applyReplaceDialog() {
+      const textarea = $('replaceTextarea');
+      const newText = textarea.value;
+      const originalText = _replaceSavedSelection ? _replaceSavedSelection.toString() : '';
+      closeReplaceDialog();
+      if (newText === originalText || !originalText) return;
+      const chapter = state.chapters[state.currentChapter];
+      if (!chapter) return;
+      if (state.directEditing) {
+        const body = getEditableChapterBody();
+        if (!body) return;
+        const sel = window.getSelection();
+        if (sel && _replaceSavedSelection) {
+          try {
+            sel.removeAllRanges();
+            sel.addRange(_replaceSavedSelection);
+            if (document.execCommand('insertText', false, newText)) {
+              showToast('已替换选中文字');
+              return;
+            }
+          } catch {}
+        }
+        const content = getDirectEditContent();
+        const idx = content.indexOf(originalText);
+        if (idx < 0) { showToast('未找到原始选中文本'); return; }
+        const newContent = content.substring(0, idx) + newText + content.substring(idx + originalText.length);
+        if (chapter.isMarkdown && !chapter.isEpubHtml) {
+          body.textContent = newContent;
+        } else {
+          body.innerText = newContent;
+        }
+        showToast('已替换选中文字');
+        return;
+      }
+      const fullContent = chapter.content || '';
+      const bodyContent = getChapterBodyContent(chapter);
+      let newFullContent;
+      const fullIdx = fullContent.indexOf(originalText);
+      if (fullIdx >= 0) {
+        newFullContent = fullContent.substring(0, fullIdx) + newText + fullContent.substring(fullIdx + originalText.length);
+      } else {
+        const bodyIdx = bodyContent.indexOf(originalText);
+        if (bodyIdx < 0) { showToast('未找到原始选中文本'); return; }
+        const newBodyContent = bodyContent.substring(0, bodyIdx) + newText + bodyContent.substring(bodyIdx + originalText.length);
+        const prefixLen = fullContent.length - bodyContent.length;
+        const prefix = prefixLen > 0 ? fullContent.substring(0, prefixLen) : '';
+        newFullContent = prefix + newBodyContent;
+      }
+      chapter.content = newFullContent;
+      const bodyForSave = getChapterBodyContent(chapter);
+      if (canSaveChapterToSource(chapter)) {
+        try {
+          await saveChapterToSource(chapter, bodyForSave);
+          delete state.chapterEdits[getChapterSourceKey(chapter)];
+        } catch (error) {
+          console.error(error);
+          showToast('原文件保存失败，已保存到阅读器本地副本');
+          state.chapterEdits[getChapterSourceKey(chapter)] = chapter.content;
+        }
+      } else {
+        state.chapterEdits[getChapterSourceKey(chapter)] = chapter.content;
+      }
+      saveChapterEdits();
+      const currentScroll = readerContainer.scrollTop;
+      renderChapter(state.currentChapter, { saveProgress: false });
+      requestAnimationFrame(() => { readerContainer.scrollTop = currentScroll; });
+      renderChapterList();
+      if (state.search.query) refreshSearchIndex(state.search.query);
+      await saveLibrarySnapshot();
+      showToast('已替换选中文字');
     }
 
     function dataUrlToBlob(dataUrl) {
@@ -3513,6 +3730,7 @@
       const previousScroll = readerContainer.scrollTop;
       const shouldReapplyPunctuation = (options.isUpdate || options.restoring) ? state.punctuationOptions : null;
       if (!options.isUpdate && !options.restoring) state.punctuationOptions = null;
+      state.customReplaceRules = [];
       state.demo = false;
       state.bookTitle = bookTitle || '我的小说';
       state.folderHandle = folderHandle || (options.isUpdate || options.restoring ? state.folderHandle : null);
@@ -4031,9 +4249,9 @@
       if (!button) return;
       const action = button.dataset.menu;
       hideContextMenu();
-      if (action === 'annotate') addAnnotation();
-      else if (action === 'copy') copySelectionText();
+      if (action === 'copy') copySelectionText();
       else if (action === 'search') searchSelectionText();
+      else if (action === 'replace') replaceSelectionText();
       else if (action === 'bookmark') addBookmark();
       else if (action === 'save-image') saveContextMenuImage();
     });
@@ -4048,7 +4266,36 @@
       state.exportFormat = button.dataset.exportFormat === 'markdown' ? 'markdown' : 'text';
       updateExportControls();
     }));
-    $('confirmExportBtn').addEventListener('click', exportCurrentContent);
+$('replaceCancelBtn').addEventListener('click', closeReplaceDialog);
+    $('replaceConfirmBtn').addEventListener('click', applyReplaceDialog);
+    $('replaceDialog').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); applyReplaceDialog(); } if (event.key === 'Escape') { event.preventDefault(); closeReplaceDialog(); } });
+    $('customRuleAddBtn').addEventListener('click', () => {
+          const fromInput = $('customRuleFrom');
+          const toInput = $('customRuleTo');
+          const from = fromInput.value;
+          const to = toInput.value;
+          if (!from) { fromInput.focus(); return; }
+          if (addCustomRule(from, to)) {
+            fromInput.value = '';
+            toInput.value = '';
+            fromInput.focus();
+            showToast('已添加自定义规则');
+          } else {
+            showToast('规则重复或原文为空');
+          }
+        });
+        $('customRuleFrom').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); $('customRuleTo').focus(); } });
+        $('customRuleTo').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); $('customRuleAddBtn').click(); } });
+        $('customRulesList').addEventListener('click', event => {
+          const item = event.target.closest('.custom-rule-item');
+          if (!item) return;
+          const index = Number(item.dataset.ruleIndex);
+          const action = event.target.closest('[data-action]')?.dataset.action;
+          if (action === 'delete') removeCustomRule(index);
+          else if (action === 'toggle') toggleCustomRule(index);
+        });
+        renderCustomRules();
+        $('confirmExportBtn').addEventListener('click', exportCurrentContent);
     $('historyFilterInput').addEventListener('input', () => renderReadingHistory());
     $('historySortSelect').addEventListener('change', () => renderReadingHistory());
     document.querySelectorAll('[data-preset]').forEach(button => button.addEventListener('click', () => setReadingPreset(button.dataset.preset)));
@@ -4073,6 +4320,28 @@
           event.preventDefault(); saveAndExitDirectEditing(); return;
         }
       }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        openFloatingPanel('search', $('searchInput'));
+        $('searchInput').focus();
+        $('searchInput').select();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'g') {
+        event.preventDefault();
+        if (state.search.matches.length) goToSearchMatch(state.search.currentIndex + (event.shiftKey ? -1 : 1));
+        return;
+      }
+      if (event.key === 'F3') {
+        event.preventDefault();
+        if (state.search.matches.length) goToSearchMatch(state.search.currentIndex + (event.shiftKey ? -1 : 1));
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        $('editorBtn').click();
+        return;
+      }
       if (event.target.matches('input, textarea, button')) return;
       if (event.key === 'ArrowLeft' || event.key === 'PageUp') $('prevPageBtn').click();
       if (event.key === 'ArrowRight' || event.key === 'PageDown') $('nextPageBtn').click();
@@ -4089,8 +4358,10 @@
       if (handle && await requestFolderPermission(handle, false)) {
         if (state.demo || state.chapters.length) return;
         state.punctuationOptions = snapshot?.punctuationOptions || null;
+      state.customReplaceRules = Array.isArray(snapshot?.customReplaceRules) ? snapshot.customReplaceRules : [];
         state.chapterEdits = { ...loadChapterEdits(handle.name), ...(snapshot?.chapterEdits || {}) };
         setPunctuationOptions(state.punctuationOptions);
+      renderCustomRules();
         setFolderSource(handle);
         await loadFromDirectory(handle, { isUpdate: false, restoring: true });
         showToast(`已恢复 ${state.chapters.length} 个章节`);
@@ -4123,7 +4394,9 @@
       state.chapterEdits = { ...loadChapterEdits(state.bookTitle, state), ...(snapshot.chapterEdits || {}) };
       state.chapters = applyChapterEdits(restoredChapters);
       state.punctuationOptions = snapshot.punctuationOptions || null;
+      state.customReplaceRules = Array.isArray(snapshot.customReplaceRules) ? snapshot.customReplaceRules : [];
       setPunctuationOptions(state.punctuationOptions);
+      renderCustomRules();
       const progress = getSavedProgress(state);
       state.currentChapter = Math.min(Number(progress?.chapter ?? snapshot.currentChapter) || 0, state.chapters.length - 1);
       $('bookTitle').textContent = state.bookTitle;
@@ -4152,7 +4425,9 @@
       state.chapterEdits = { ...loadChapterEdits(state.bookTitle, state), ...(snapshot.chapterEdits || {}) };
       state.chapters = applyChapterEdits(restoredChapters);
       state.punctuationOptions = snapshot.punctuationOptions || entry?.punctuationOptions || null;
+      state.customReplaceRules = Array.isArray(snapshot?.customReplaceRules || entry?.customReplaceRules) ? (snapshot.customReplaceRules || entry.customReplaceRules) : [];
       setPunctuationOptions(state.punctuationOptions);
+      renderCustomRules();
       const progress = getHistoryProgress({ ...entry, bookTitle: state.bookTitle, chapterCount: state.chapters.length, currentChapter: snapshot.currentChapter });
       state.currentChapter = progress.chapter;
       $('bookTitle').textContent = state.bookTitle;
@@ -4174,7 +4449,9 @@
       if (isDesktop && entry.sourcePath) {
         sourceLoadAttempted = true;
         state.punctuationOptions = entry.punctuationOptions || null;
+      state.customReplaceRules = Array.isArray(entry?.customReplaceRules) ? entry.customReplaceRules : [];
         setPunctuationOptions(state.punctuationOptions);
+      renderCustomRules();
         loaded = entry.sourceType === 'folder'
           ? await loadFromDesktopFolder(entry.sourcePath, { restoring: true })
           : await loadDesktopBookPath(entry.sourcePath, { restoring: true });

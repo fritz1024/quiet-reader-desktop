@@ -9,28 +9,15 @@ const JSZip = require('jszip');
 const APP_NAME = '静读阅读器';
 const BOOK_EXTENSIONS = new Set(['.epub', '.txt', '.md', '.markdown', '.zip']);
 const TEXT_EXTENSIONS = new Set(['.txt', '.md', '.markdown']);
-const REFERENCE_FOLDER_KEYWORDS = ['设定', '世界观', '人物', '大纲', 'outline', 'notes', 'characters', 'worldbuilding', '参考', '资料', '背景', '草稿', '灵感', 'setting', 'reference', '附录', 'extras', '备注'];
-const CONTENT_FOLDER_KEYWORDS = ['正文', '章节', 'chapters', 'content', '卷'];
-const REFERENCE_FILE_KEYWORDS = ['readme', 'notes', '设定', '大纲', '人物', '世界观', 'outline', 'character', 'worldbuilding', '简介', '背景', '草稿', '灵感', 'setting', 'reference', '附录', '备注'];
+const CONTENT_FOLDER_NAMES = ['正文', '章节', 'chapters', 'content'];
 
 function classifyFileCategory(relativePath) {
   const parts = relativePath.split('/');
-  const filename = parts.pop() || '';
-  const nameWithoutExt = filename.replace(/\.[^.]+$/, '').toLowerCase();
-  // Check ancestor folders (excluding root folder which is the book title)
-  let lastMatch = null;
-  for (let i = 0; i < parts.length; i++) {
-    const folderLower = parts[i].toLowerCase();
-    if (REFERENCE_FOLDER_KEYWORDS.some(k => folderLower.includes(k.toLowerCase()))) {
-      lastMatch = 'reference';
-    } else if (CONTENT_FOLDER_KEYWORDS.some(k => folderLower.includes(k.toLowerCase()))) {
-      lastMatch = 'content';
-    }
-  }
-  if (lastMatch) return lastMatch;
-  // Fall back to filename keywords
-  if (REFERENCE_FILE_KEYWORDS.some(k => nameWithoutExt.includes(k.toLowerCase()))) return 'reference';
-  return 'content';
+  parts.pop(); // remove filename, keep folder path
+  if (parts.length === 0) return 'reference'; // root-level files → reference
+  const topFolder = parts[0].toLowerCase();
+  if (CONTENT_FOLDER_NAMES.some(k => topFolder === k.toLowerCase() || topFolder.startsWith(k.toLowerCase()))) return 'content';
+  return 'reference';
 }
 const SOURCE_BACKUP_KEEP_COUNT = 10;
 const APP_DATA_ARCHIVE_KIND = 'quiet-reader-data';
