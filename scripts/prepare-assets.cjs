@@ -25,6 +25,14 @@ copyFile(
   path.join(root, 'node_modules', 'jszip', 'dist', 'jszip.min.js'),
   path.join(vendorPath, 'jszip.min.js')
 );
+copyFile(
+  path.join(root, 'node_modules', 'pdfjs-dist', 'build', 'pdf.min.js'),
+  path.join(vendorPath, 'pdf.min.js')
+);
+copyFile(
+  path.join(root, 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js'),
+  path.join(vendorPath, 'pdf.worker.min.js')
+);
 copyDirectory(
   path.join(root, 'node_modules', '@fortawesome', 'fontawesome-free', 'css'),
   path.join(vendorPath, 'fontawesome', 'css')

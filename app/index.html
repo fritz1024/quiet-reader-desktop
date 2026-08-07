@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="vendor/fonts/noto-serif-sc/index.css">
   <link rel="stylesheet" href="vendor/fonts/noto-sans-sc/index.css">
   <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/pdf.min.js"></script>
   <style>
     @font-face {
       font-family: "LXGW WenKai Reader";
@@ -360,6 +361,31 @@
        .reader-dialog-actions { flex-direction: column-reverse; }
        .reader-dialog-actions button { width: 100%; }
      }
+
+    /* PDF Viewer */
+    .pdf-viewer-container { display: flex; flex-direction: column; height: calc(100dvh - 120px); }
+    .pdf-toolbar { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 16px;
+      border-bottom: 1px solid var(--line); background: var(--surface); flex-shrink: 0; flex-wrap: wrap; }
+    .pdf-page-controls, .pdf-zoom-controls, .pdf-dark-toggle { display: flex; align-items: center; gap: 4px; }
+    .pdf-page-indicator { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); min-width: 80px; justify-content: center; }
+    .pdf-page-indicator input { width: 52px; text-align: center; border: 1px solid var(--line); border-radius: 6px;
+      padding: 3px 4px; font-size: 13px; background: var(--surface-2); color: var(--text); outline: none; }
+    .pdf-page-indicator input:focus { border-color: var(--accent); }
+    .pdf-canvas-wrapper { flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start;
+      padding: 16px; background: var(--bg); }
+    .pdf-canvas-wrapper canvas { display: block; box-shadow: 0 4px 24px var(--shadow); border-radius: 4px; }
+    .pdf-loading { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; padding: 40px; }
+    .pdf-inverted { filter: invert(0.88) hue-rotate(180deg); }
+    .epub-viewer-container { }
+    .epub-nav-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; margin: 0 auto 12px; max-width: 680px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; font-size: 13px; color: var(--muted); }
+    .epub-nav-bar button { background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--fg); padding: 4px 10px; cursor: pointer; font-size: 13px; transition: background .15s, border-color .15s; }
+    .epub-nav-bar button:hover:not(:disabled) { background: var(--hover); border-color: var(--accent); }
+    .epub-nav-bar button:disabled { opacity: .35; cursor: default; }
+    .epub-nav-select { flex: 1; min-width: 0; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font-size: 13px; cursor: pointer; appearance: auto; }
+    .epub-nav-select:focus { outline: none; border-color: var(--accent); }
+    .epub-nav-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .pdf-toolbar .icon-button.active { color: var(--accent); background: var(--accent-soft); }
+    .pdf-toolbar .icon-button { font-size: 13px; }
   </style>
 </head>
 <body data-theme="default" class="home-mode">
@@ -421,7 +447,7 @@
         <button class="icon-button mobile-more-button" id="mobileMoreBtn" type="button" title="更多功能" aria-label="更多功能" aria-expanded="false">
           <i class="fa-solid fa-ellipsis text-[15px]"></i>
         </button>
-        <input type="file" id="bookInput" accept=".txt,.md,.markdown,.epub,.zip,text/plain,application/epub+zip,application/zip" hidden>
+        <input type="file" id="bookInput" accept=".txt,.md,.markdown,.epub,.zip,.pdf,text/plain,application/epub+zip,application/zip,application/pdf" hidden>
         <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
       </div>
     </header>
@@ -554,6 +580,18 @@
         <div class="setting-label">行间距</div>
         <div class="grid grid-cols-3 gap-2">
           <button class="setting-option" data-line="1.7">紧凑</button><button class="setting-option active" data-line="2.05">标准</button><button class="setting-option" data-line="2.4">宽松</button>
+        </div>
+      </div>
+      <div class="border-t border-line pt-5" id="storagePathSection" hidden>
+        <div class="mb-1 setting-label">数据存储位置</div>
+        <div class="mb-3 text-[11px] leading-5 text-muted">阅读记录、设置、书签等数据的存储路径。修改后会自动迁移现有数据并重启应用。</div>
+        <div class="mb-3 rounded-lg border border-line bg-[var(--bg)] px-3 py-2">
+          <div class="text-[11px] text-muted">当前路径</div>
+          <div class="text-xs break-all leading-5" id="currentStoragePath">-</div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="secondary-button px-2" id="changeStoragePathBtn" type="button"><i class="fa-solid fa-folder-open"></i><span>更改位置</span></button>
+          <button class="secondary-button px-2" id="resetStoragePathBtn" type="button" hidden><i class="fa-solid fa-rotate-left"></i><span>恢复默认</span></button>
         </div>
       </div>
       <div class="border-t border-line pt-5" id="dataTransferSection" hidden>
@@ -787,7 +825,9 @@
       search: { query: '', scope: 'chapter', matches: [], currentIndex: -1 }, marks: [], readingPreset: 'comfortable',
       readerPaperPadding: readingPresets.comfortable.paperPadding,
       readerPaperPaddingMobile: readingPresets.comfortable.paperPaddingMobile,
-      exportScope: 'current', exportFormat: 'text'
+      exportScope: 'current', exportFormat: 'text',
+      pdfViewer: { document: null, pageCount: 0, currentPage: 1, zoomMode: 'fit-width', zoomLevel: 1.0, rendering: false, darkInvert: false, renderTask: null },
+      epubViewer: { chapters: [], currentEpubChapter: 0 }
     };
 
     const $ = (id) => document.getElementById(id);
@@ -817,9 +857,10 @@
     const dialogDiscardBtn = $('dialogDiscardBtn');
     const dialogSaveBtn = $('dialogSaveBtn');
     const textFilePattern = /\.(txt|md|markdown)$/i;
-    const bookFilePattern = /\.(txt|md|markdown|epub|zip)$/i;
-    const maxBookFileBytes = 256 * 1024 * 1024;
-    const maxTextFileBytes = 64 * 1024 * 1024;
+    const bookFilePattern = /\.(txt|md|markdown|epub|zip|pdf)$/i;
+    const pdfFilePattern = /\.pdf$/i;
+    const maxBookFileBytes = 1024 * 1024 * 1024;
+    const maxTextFileBytes = 1024 * 1024 * 1024;
     const REFERENCE_FOLDER_KEYWORDS = ['设定', '世界观', '人物', '大纲', 'outline', 'notes', 'characters', 'worldbuilding', '参考', '资料', '背景', '草稿', '灵感', 'setting', 'reference', '附录', 'extras', '备注'];
     const CONTENT_FOLDER_KEYWORDS = ['正文', '章节', 'chapters', 'content', '卷'];
     const REFERENCE_FILE_KEYWORDS = ['readme', 'notes', '设定', '大纲', '人物', '世界观', 'outline', 'character', 'worldbuilding', '简介', '背景', '草稿', '灵感', 'setting', 'reference', '附录', '备注'];
@@ -827,6 +868,8 @@
     function classifyFileCategory(relativePath) {
       const parts = relativePath.split('/');
       const filename = parts.pop() || '';
+      const ext = filename.match(/\.[^.]+$/)?.[0].toLowerCase() || '';
+      if (ext === '.pdf' || ext === '.epub') return 'content';
       const nameWithoutExt = filename.replace(/\.[^.]+$/, '').toLowerCase();
       let lastMatch = null;
       for (let i = 0; i < parts.length; i++) {
@@ -947,11 +990,12 @@
     function formatNumber(num) { return Number(num || 0).toLocaleString('zh-CN'); }
     function isSupportedFile(file) { return textFilePattern.test(file.name); }
     function isBookFile(file) { return bookFilePattern.test(file.name); }
+    function isPdfFile(file) { return pdfFilePattern.test(typeof file === 'string' ? file : file.name); }
     function isMarkdownFile(file) {
       const name = typeof file === 'string' ? file : file?.name;
       return /\.(md|markdown)$/i.test(String(name || ''));
     }
-    function getFilenameWithoutExtension(filename) { return filename.replace(/\.(txt|md|markdown|epub|zip)$/i, ''); }
+    function getFilenameWithoutExtension(filename) { return filename.replace(/\.(txt|md|markdown|epub|zip|pdf)$/i, ''); }
 
     function openFolderDatabase() {
       if (isDesktop) return Promise.resolve(null);
@@ -1012,9 +1056,9 @@
         chapterEdits: { ...state.chapterEdits },
         chapterCount: state.chapters.length,
         wordCount: getBookWordCount(),
-        chapters: state.chapters.map(({ title, content, htmlContent, filename, sourceKey, sourceDocumentKey, sourceBodyStart, sourceBodyEnd, isMarkdown, isEpubHtml, isCover, category }) => ({
+        chapters: state.chapters.map(({ title, content, htmlContent, filename, sourceKey, sourceDocumentKey, sourceBodyStart, sourceBodyEnd, isMarkdown, isEpubHtml, isCover, isPdf, isEpubFile, lazyFolder, lazyPath, category, wordCount }) => ({
           title,
-          ...(sourceBacked ? {} : { content, htmlContent }),
+          ...(sourceBacked ? {} : (isPdf ? {} : { content, htmlContent })),
           filename,
           sourceKey,
           sourceDocumentKey,
@@ -1023,7 +1067,12 @@
           isMarkdown,
           isEpubHtml,
           isCover,
-          category
+          isPdf: Boolean(isPdf),
+          isEpubFile: Boolean(isEpubFile),
+          lazyFolder: isEpubFile ? (lazyFolder || '') : undefined,
+          lazyPath: isEpubFile ? (lazyPath || '') : undefined,
+          category,
+          wordCount: typeof wordCount === 'number' ? wordCount : undefined
         }))
       };
       if (isDesktop) {
@@ -1482,6 +1531,8 @@
         const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
         if (entry.kind === 'file') {
           if (textFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category: classifyFileCategory(relativePath) });
+          else if (pdfFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category: classifyFileCategory(relativePath), isPdf: true });
+          else if (/.epub$/i.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category: classifyFileCategory(relativePath), isEpub: true });
         } else if (entry.kind === 'directory') {
           files.push(...await collectDirectoryFiles(entry, relativePath));
         }
@@ -1561,7 +1612,8 @@
     }
 
     function nativeFileFromResult(result) {
-      if (!result || !result.name || !result.bytes) throw new Error('无法读取所选文件');
+      if (!result || !result.name) throw new Error('无法读取所选文件');
+      if (!result.bytes) return null;
       const file = new File([result.bytes], result.name, { type: result.type || 'application/octet-stream' });
       file.readerEncoding = result.encoding || '';
       file.readerBom = Boolean(result.bom);
@@ -1589,16 +1641,25 @@
       showLoading(true);
       try {
         const result = await desktopApi.readFolder(folderPath);
-        const items = (result.items || []).map(item => ({
-          file: nativeFileFromResult(item),
-          relativePath: item.relativePath || item.name,
-          category: item.category || 'content'
-        }));
+        const resolvedPath = result.path || folderPath;
+        const items = (result.items || []).map(item => {
+          const file = nativeFileFromResult(item);
+          return {
+            file,
+            relativePath: item.relativePath || item.name,
+            category: item.category || 'content',
+            lazyLoad: Boolean(item.lazyLoad),
+            lazyFileName: item.name,
+            folderPath: resolvedPath,
+            wordCount: typeof item.wordCount === 'number' ? item.wordCount : 0
+          };
+        });
         setFolderSource(null);
         const loaded = await loadFromFileItems(items, result.title || '我的小说', null, {
           ...options,
-          sourcePath: result.path || folderPath,
-          sourceType: 'folder'
+          sourcePath: resolvedPath,
+          sourceType: 'folder',
+          folderPath: resolvedPath
         });
         if (loaded && !options.isUpdate) showToast(`已导入 ${state.chapters.length} 个章节`);
         return loaded;
@@ -1717,8 +1778,14 @@
 
     function getBookWordCount() {
       return state.chapters
-        .filter(chapter => !chapter.isCover && chapter.category !== 'reference')
-        .reduce((total, chapter) => total + getWordCount(getChapterBodyContent(chapter), chapter.isMarkdown), 0);
+        .filter(chapter => !chapter.isCover && chapter.category !== 'reference' && !chapter.isPdf && !chapter.isEpubFile)
+        .reduce((total, chapter) => {
+          if (typeof chapter.wordCount === 'number' && chapter.wordCount > 0) return total + chapter.wordCount;
+          if (chapter.content === null) return total;
+          const wc = getWordCount(getChapterBodyContent(chapter), chapter.isMarkdown);
+          chapter.wordCount = wc;
+          return total + wc;
+        }, 0);
     }
 
     function markdownToPlainText(text) {
@@ -2265,6 +2332,7 @@
       } else {
         chapter.content = content;
       }
+      chapter.wordCount = 0;
       if (chapter.isEpubHtml) {
         chapter.htmlContent = sanitizeEpubHtml(getEditableChapterBody()?.innerHTML || '');
         state.chapterEdits[getChapterSourceKey(chapter)] = { content, htmlContent: chapter.htmlContent };
@@ -2365,7 +2433,7 @@
                   ? { text: contentResult.text, changes: 0 }
                   : applyCustomRules(contentResult.text);
                 totalChanges += customTitle.changes + customContent.changes;
-                return { ...chapter, title: customTitle.text, content: customContent.text, htmlContent: htmlResult?.html ?? chapter.htmlContent };
+                return { ...chapter, title: customTitle.text, content: customContent.text, htmlContent: htmlResult?.html ?? chapter.htmlContent, wordCount: 0 };
       });
 
       state.punctuationHistory = snapshot;
@@ -2583,7 +2651,9 @@
     function inferChapterTypes(chapters) {
       return (chapters || []).map(chapter => ({
         ...chapter,
-        isMarkdown: Boolean(chapter.isMarkdown || isMarkdownFile(chapter.filename))
+        isMarkdown: chapter.isPdf ? false : Boolean(chapter.isMarkdown || isMarkdownFile(chapter.filename)),
+        isPdf: Boolean(chapter.isPdf),
+        isEpubFile: Boolean(chapter.isEpubFile)
       }));
     }
 
@@ -2907,8 +2977,26 @@
 
     async function parseBookFile(file, relativePath = file.name) {
       const extension = (file.name.match(/\.([^.]+)$/)?.[1] || '').toLowerCase();
-      assertFileSize(file, ['epub', 'zip'].includes(extension) ? maxBookFileBytes : maxTextFileBytes, ['epub', 'zip'].includes(extension) ? '书籍文件' : '文本文件');
-      if (extension === 'epub') {
+      if (extension !== 'pdf') assertFileSize(file, ['epub', 'zip'].includes(extension) ? maxBookFileBytes : maxTextFileBytes, ['epub', 'zip'].includes(extension) ? '书籍文件' : '文本文件');
+      if (extension === 'pdf') {
+      assertFileSize(file, maxBookFileBytes, 'PDF 文件');
+      const buffer = await readBinaryFile(file);
+      return {
+        title: getFilenameWithoutExtension(file.name),
+        chapters: [{
+          title: getFilenameWithoutExtension(file.name),
+          content: '',
+          filename: relativePath,
+          sourceKey: `${relativePath}\u0000pdf`,
+          isMarkdown: false,
+          isEpubHtml: false,
+          isPdf: true,
+          pdfBuffer: buffer,
+          category: 'content'
+        }]
+      };
+    }
+    if (extension === 'epub') {
         const parsed = await parseEpubFile(file);
         return {
           ...parsed,
@@ -2931,6 +3019,8 @@
     }
 
     function getChapterBodyContent(chapter) {
+      if (chapter.isPdf || chapter.isEpubFile) return '';
+      if (chapter.content === null) return '（正在加载…）';
       let content = (chapter.content || '').replace(/^\uFEFF/, '');
       if (chapter.isMarkdown) return content.replace(/^(?:[ \t]*\r?\n)*[ \t]*#\s+.*?[ \t]*#?[ \t]*(?:\r?\n|$)/, '').trimStart();
       const heading = content.match(/^\s*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇][^\r\n]*|Chapter\s+\d+[^\r\n]*))[ \t]*(?:\r?\n|$)/i);
@@ -3594,42 +3684,68 @@
       $('sidebarBookName').textContent = state.bookTitle || '未命名书籍';
       $('emptyChapterList').classList.toggle('hidden', state.chapters.length > 0);
 
-      // Group chapters by category
-      const groups = {};
+      // Classify chapters into typed groups
+      const groupDefs = {
+        chapters: { label: '章节', icon: 'fa-feather-pointed', items: [] },
+        manga:    { label: '漫画', icon: 'fa-images',          items: [] },
+        ebooks:   { label: '电子书', icon: 'fa-book-open',     items: [] },
+        reference:{ label: '设定', icon: 'fa-book-bookmark',   items: [] }
+      };
+
       state.chapters.forEach((chapter, index) => {
         const cat = chapter.category || 'content';
-        if (!groups[cat]) groups[cat] = [];
-        groups[cat].push({ chapter, index });
+        let groupKey;
+        if (cat === 'reference') {
+          groupKey = 'reference';
+        } else if (chapter.isPdf) {
+          groupKey = 'manga';
+        } else if (chapter.isEpubHtml) {
+          groupKey = 'ebooks';
+        } else {
+          groupKey = 'chapters';
+        }
+        groupDefs[groupKey].items.push({ chapter, index });
       });
 
-      // Determine display order: content first, then reference
-      const groupOrder = ['content', 'reference'].filter(cat => groups[cat]?.length > 0);
-      const hasReference = groups.reference?.length > 0;
+      // Build ordered list of non-empty groups
+      const activeGroups = [];
+      for (const key of ['chapters', 'ebooks', 'manga', 'reference']) {
+        if (groupDefs[key].items.length > 0) activeGroups.push({ key, ...groupDefs[key] });
+      }
+
+      const showHeaders = activeGroups.length > 1;
 
       // Update chapter count display
-      const contentCount = groups.content?.length || 0;
-      const refCount = groups.reference?.length || 0;
-      chapterCount.textContent = hasReference ? `${contentCount} 章 / ${refCount} 设定` : `${state.chapters.length} 章`;
-      $('bookWordCount').textContent = `正文 ${formatNumber(getBookWordCount())} 字`;
+      const parts = [];
+      if (groupDefs.chapters.items.length) parts.push(`${groupDefs.chapters.items.length} 章`);
+      if (groupDefs.ebooks.items.length) parts.push(`${groupDefs.ebooks.items.length} 章`);
+      if (groupDefs.manga.items.length) parts.push(`${groupDefs.manga.items.length} 册`);
+      if (groupDefs.reference.items.length) parts.push(`${groupDefs.reference.items.length} 设定`);
+      chapterCount.textContent = parts.join(' · ') || '0 章';
+      const wordTotal = getBookWordCount();
+      $('bookWordCount').textContent = wordTotal > 0 ? `正文 ${formatNumber(wordTotal)} 字` : '';
 
-      for (const cat of groupOrder) {
-        const items = groups[cat];
-        const isCollapsed = sidebarCollapsedGroups[cat] === true;
-        const isRef = cat === 'reference';
-        const groupLabel = isRef ? '设定' : '正文';
+      for (const group of activeGroups) {
+        const { key, label, icon, items } = group;
+        const isCollapsed = sidebarCollapsedGroups[key] === true;
+        const isRef = key === 'reference';
+        const isManga = key === 'manga';
+        const isEbook = key === 'ebooks';
 
-        // Group header
-        const headerLi = document.createElement('li');
-        const headerBtn = document.createElement('button');
-        headerBtn.type = 'button';
-        headerBtn.className = 'chapter-group-header';
-        headerBtn.innerHTML = `<i class="fa-solid ${isRef ? 'fa-book-bookmark' : 'fa-feather-pointed'} group-icon" style="font-size:11px;opacity:0.5"></i><span>${groupLabel}</span><span class="group-count">${items.length}</span><i class="fa-solid fa-chevron-down group-chevron ${isCollapsed ? 'collapsed' : ''}"></i>`;
-        headerBtn.addEventListener('click', () => {
-          sidebarCollapsedGroups[cat] = !sidebarCollapsedGroups[cat];
-          renderChapterList();
-        });
-        headerLi.appendChild(headerBtn);
-        chapterList.appendChild(headerLi);
+        // Group header (hidden when only one group)
+        if (showHeaders) {
+          const headerLi = document.createElement('li');
+          const headerBtn = document.createElement('button');
+          headerBtn.type = 'button';
+          headerBtn.className = 'chapter-group-header';
+          headerBtn.innerHTML = `<i class="fa-solid ${icon} group-icon" style="font-size:11px;opacity:0.5"></i><span>${label}</span><span class="group-count">${items.length}</span><i class="fa-solid fa-chevron-down group-chevron ${isCollapsed ? 'collapsed' : ''}"></i>`;
+          headerBtn.addEventListener('click', () => {
+            sidebarCollapsedGroups[key] = !sidebarCollapsedGroups[key];
+            renderChapterList();
+          });
+          headerLi.appendChild(headerBtn);
+          chapterList.appendChild(headerLi);
+        }
 
         // Group list
         const listLi = document.createElement('li');
@@ -3644,6 +3760,10 @@
           button.className = `chapter-item ${index === state.currentChapter ? 'active' : ''}`;
           if (isRef) {
             button.innerHTML = `<i class="fa-solid fa-file-lines" style="flex:0 0 16px;font-size:11px;opacity:0.5;text-align:center;padding-top:2px"></i><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span>`;
+          } else if (isManga) {
+            button.innerHTML = `<i class="fa-solid fa-images" style="flex:0 0 16px;font-size:11px;opacity:0.5;text-align:center;padding-top:2px"></i><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span>`;
+          } else if (isEbook) {
+            button.innerHTML = `<i class="fa-solid fa-book-open" style="flex:0 0 16px;font-size:11px;opacity:0.5;text-align:center;padding-top:2px"></i><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span><span class="chapter-epub-count" style="font-size:10px;color:var(--muted);margin-left:4px">${(chapter.epubChapters || []).length}章</span>`;
           } else {
             button.innerHTML = `<span class="chapter-number">${String(groupIndex + 1).padStart(2, '0')}</span><span class="chapter-name" title="${escapeHtml(chapter.title)}">${escapeHtml(chapter.title)}</span>`;
           }
@@ -3661,16 +3781,43 @@
       const chapter = state.chapters[index]; if (!chapter) return;
       state.currentChapter = index;
       if (refreshChapterSearch && state.search.scope === 'chapter' && state.search.query) refreshSearchIndex();
+      if (chapter.isEpubFile) {
+        renderEpubViewer(chapter, index);
+        applyReadingSettings();
+        renderChapterList();
+        $('sourceBackupBtn').classList.toggle('show', false);
+        syncMobileMoreActions();
+        updateNavButtonLabels();
+        updateNavButtonStates();
+        readerContainer.scrollTop = 0;
+        progressFill.style.width = '0%';
+        if (shouldSaveProgress) saveProgress();
+        return;
+      }
+      if (chapter.isPdf) {
+        renderPdfViewer(chapter, index);
+        applyReadingSettings();
+        renderChapterList();
+        $('sourceBackupBtn').classList.toggle('show', false);
+        syncMobileMoreActions();
+        updateNavButtonLabels();
+        updateNavButtonStates();
+        readerContainer.scrollTop = 0;
+        progressFill.style.width = '0%';
+        if (shouldSaveProgress) saveProgress();
+        return;
+      }
       const content = getChapterBodyContent(chapter);
       const bodyHtml = chapter.isEpubHtml
         ? (chapter.htmlContent || '')
         : (chapter.isMarkdown ? renderMarkdown(content) : content.split(/\n+/).filter(line => line.trim()).map(line => `<p>${escapeHtml(line.trim())}</p>`).join(''));
+      const groupInfo = getChapterGroupInfo(index);
       const headerHtml = chapter.isCover ? '' : `
         <header class="mb-11 text-center">
-          <div class="mb-4 text-[10px] font-bold uppercase tracking-[.17em] text-[var(--accent)]">Chapter ${String(index + 1).padStart(2, '0')}</div>
+          <div class="mb-4 text-[10px] font-bold uppercase tracking-[.17em] text-[var(--accent)]">Chapter ${String(groupInfo.groupIndex + 1).padStart(2, '0')}</div>
           <h1 class="chapter-title">${escapeHtml(chapter.title)}</h1>
           <div class="chapter-divider"></div>
-          <div class="chapter-meta"><span>第 ${index + 1} / ${state.chapters.length} 章</span><span class="meta-dot"></span><span class="meta-accent">${formatNumber(getWordCount(content, chapter.isMarkdown))} 字</span><span class="meta-dot"></span><span>${escapeHtml(chapter.filename || '本地文件')}</span></div>
+          <div class="chapter-meta"><span>第 ${groupInfo.groupIndex + 1} / ${groupInfo.groupTotal} 章</span><span class="meta-dot"></span><span class="meta-accent">${formatNumber(getWordCount(content, chapter.isMarkdown))} 字</span><span class="meta-dot"></span><span>${escapeHtml(chapter.filename || '本地文件')}</span></div>
         </header>`;
       const endHtml = chapter.isCover ? '' : '<div class="chapter-end"><i class="fa-solid fa-feather-pointed mr-2 text-[var(--accent)]"></i>本章完</div>';
       readerContent.innerHTML = `
@@ -3695,6 +3842,7 @@
       }
       $('sourceBackupBtn').classList.toggle('show', Boolean(getSourceBackupRequest()));
       syncMobileMoreActions();
+      updateNavButtonLabels();
       $('prevPageBtn').disabled = index === 0;
       $('nextPageBtn').disabled = index === state.chapters.length - 1;
       readerContainer.scrollTop = 0;
@@ -3702,8 +3850,426 @@
       if (shouldSaveProgress) saveProgress();
     }
 
+
+    // ── PDF Viewer Engine ──
+    const pdfPageCache = new Map();
+    const PDF_CACHE_MAX = 10;
+
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+    }
+
+    async function renderPdfViewer(chapter, chapterIndex) {
+      await cleanupPdfDocument();
+      state.epubViewer = { chapters: [], currentEpubChapter: 0 };
+      if (!chapter.pdfBuffer && chapter.pdfLazyFolder && chapter.pdfLazyPath && isDesktop) {
+        readerContent.innerHTML = '<div class="pdf-viewer-container"><div class="pdf-canvas-wrapper"><div class="pdf-loading">正在加载 PDF...</div></div></div>';
+        try {
+          const result = await desktopApi.readFolderFile(chapter.pdfLazyFolder, chapter.pdfLazyPath);
+          const file = nativeFileFromResult(result);
+          chapter.pdfBuffer = await readBinaryFile(file);
+        } catch(e) {
+          console.error('Lazy PDF load failed:', e);
+          readerContent.innerHTML = '<div class="pdf-viewer-container"><div class="pdf-canvas-wrapper"><div class="pdf-loading">PDF 加载失败，请重新导入文件夹。</div></div></div>';
+          return;
+        }
+      }
+      if (!chapter.pdfBuffer) {
+        readerContent.innerHTML = '<div class="pdf-viewer-container"><div class="pdf-canvas-wrapper"><div class="pdf-loading">PDF 数据不可用，请重新从原文件导入。</div></div></div>';
+        return;
+      }
+      readerContent.innerHTML = '<div class="pdf-viewer-container"><div class="pdf-toolbar"><div class="pdf-page-controls"><button id="pdfFirstPage" class="icon-button" title="首页"><i class="fa-solid fa-angles-left"></i></button><button id="pdfPrevPage" class="icon-button" title="上一页"><i class="fa-solid fa-angle-left"></i></button><span class="pdf-page-indicator"><input type="number" id="pdfPageInput" min="1" value="1" /> / <span id="pdfPageCount">-</span></span><button id="pdfNextPage" class="icon-button" title="下一页"><i class="fa-solid fa-angle-right"></i></button><button id="pdfLastPage" class="icon-button" title="末页"><i class="fa-solid fa-angles-right"></i></button></div><div class="pdf-zoom-controls"><button id="pdfZoomOut" class="icon-button" title="缩小"><i class="fa-solid fa-magnifying-glass-minus"></i></button><button id="pdfFitWidth" class="icon-button active" title="适合宽度"><i class="fa-solid fa-arrows-left-right"></i></button><button id="pdfZoomIn" class="icon-button" title="放大"><i class="fa-solid fa-magnifying-glass-plus"></i></button></div><div class="pdf-dark-toggle"><button id="pdfDarkInvert" class="icon-button" title="反色模式"><i class="fa-solid fa-circle-half-stroke"></i></button></div></div><div class="pdf-canvas-wrapper" id="pdfCanvasWrapper"><div class="pdf-loading" id="pdfLoading">正在加载 PDF...</div></div></div>';
+
+      const savedPage = getPdfSavedPage(chapterIndex);
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: chapter.pdfBuffer.slice(0) });
+        const pdfDocument = await loadingTask.promise;
+        state.pdfViewer.document = pdfDocument;
+        state.pdfViewer.pageCount = pdfDocument.numPages;
+        state.pdfViewer.currentPage = savedPage || 1;
+        $('pdfPageCount').textContent = pdfDocument.numPages;
+        $('pdfPageInput').max = pdfDocument.numPages;
+        $('pdfPageInput').value = state.pdfViewer.currentPage;
+        $('pdfLoading').style.display = 'none';
+        bindPdfToolbarEvents();
+        await renderPdfPage(state.pdfViewer.currentPage);
+      } catch (error) {
+        console.error('PDF load error:', error);
+        const loading = $('pdfLoading');
+        if (loading) loading.textContent = 'PDF 加载失败：' + (error.message || '未知错误');
+      }
+    }
+
+    async function renderPdfPage(pageNumber) {
+      const pdfDocument = state.pdfViewer.document;
+      if (!pdfDocument || state.pdfViewer.rendering) return;
+      if (state.pdfViewer.renderTask) { try { state.pdfViewer.renderTask.cancel(); } catch(_) {} }
+      state.pdfViewer.rendering = true;
+      let wrapper = $('pdfCanvasWrapper');
+      if (!wrapper) { state.pdfViewer.rendering = false; return; }
+      let canvas = $('pdfCanvas');
+      if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'pdfCanvas';
+        wrapper.appendChild(canvas);
+      }
+      const context = canvas.getContext('2d');
+      try {
+        const page = await pdfDocument.getPage(pageNumber);
+        const wrapperWidth = wrapper.clientWidth - 32;
+        const wrapperHeight = wrapper.clientHeight - 16;
+        const defaultViewport = page.getViewport({ scale: 1 });
+        let scale;
+        if (state.pdfViewer.zoomMode === 'fit-width') {
+          scale = wrapperWidth / defaultViewport.width;
+        } else if (state.pdfViewer.zoomMode === 'fit-page') {
+          scale = Math.min(wrapperWidth / defaultViewport.width, wrapperHeight / defaultViewport.height);
+        } else {
+          scale = state.pdfViewer.zoomLevel;
+        }
+        const outputScale = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: scale * outputScale });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = Math.floor(viewport.width / outputScale) + 'px';
+        canvas.style.height = Math.floor(viewport.height / outputScale) + 'px';
+        if (state.pdfViewer.darkInvert) canvas.classList.add('pdf-inverted');
+        else canvas.classList.remove('pdf-inverted');
+        const renderContext = { canvasContext: context, viewport: viewport };
+        state.pdfViewer.renderTask = page.render(renderContext);
+        await state.pdfViewer.renderTask.promise;
+        page.cleanup();
+        state.pdfViewer.currentPage = pageNumber;
+        const input = $('pdfPageInput');
+        if (input) input.value = pageNumber;
+        prefetchPdfPage(pageNumber + 1);
+        prefetchPdfPage(pageNumber - 1);
+        updatePdfProgress();
+        if (typeof updateNavButtonStates === 'function') updateNavButtonStates();
+        saveProgress();
+      } catch (error) {
+        if (error && error.name !== 'RenderingCancelledException') console.error('PDF page render error:', error);
+      } finally {
+        state.pdfViewer.rendering = false;
+        state.pdfViewer.renderTask = null;
+      }
+    }
+
+    function updatePdfProgress() {
+      const total = state.pdfViewer.pageCount;
+      const current = state.pdfViewer.currentPage;
+      if (total > 0) {
+        progressFill.style.width = `${(current / total) * 100}%`;
+      }
+    }
+
+    function getPdfSavedPage(chapterIndex) {
+      try {
+        const key = 'reader_pdf_pages';
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        const libKey = state.libraryIdentity || state.bookTitle;
+        const pages = data[libKey];
+        if (pages && typeof pages[chapterIndex] === 'number') return pages[chapterIndex];
+      } catch(_) {}
+      return 0;
+    }
+
+    function savePdfPage(chapterIndex, page) {
+      try {
+        const key = 'reader_pdf_pages';
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        const libKey = state.libraryIdentity || state.bookTitle;
+        if (!data[libKey]) data[libKey] = {};
+        data[libKey][chapterIndex] = page;
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch(_) {}
+    }
+
+    async function prefetchPdfPage(pageNumber) {
+      const pdfDocument = state.pdfViewer.document;
+      if (!pdfDocument || pageNumber < 1 || pageNumber > state.pdfViewer.pageCount) return;
+      const cacheKey = `${state.currentChapter}_${pageNumber}`;
+      if (pdfPageCache.has(cacheKey)) return;
+      try {
+        const page = await pdfDocument.getPage(pageNumber);
+        pdfPageCache.set(cacheKey, page);
+        if (pdfPageCache.size > PDF_CACHE_MAX) {
+          const firstKey = pdfPageCache.keys().next().value;
+          const evicted = pdfPageCache.get(firstKey);
+          if (evicted) try { evicted.cleanup(); } catch(_) {}
+          pdfPageCache.delete(firstKey);
+        }
+      } catch(_) {}
+    }
+
+    function bindPdfToolbarEvents() {
+      const bind = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
+      bind('pdfFirstPage', () => pdfGoToPage(1));
+      bind('pdfPrevPage', () => pdfGoToPage(state.pdfViewer.currentPage - 1));
+      bind('pdfNextPage', () => pdfGoToPage(state.pdfViewer.currentPage + 1));
+      bind('pdfLastPage', () => pdfGoToPage(state.pdfViewer.pageCount));
+      bind('pdfZoomIn', () => pdfZoomIn());
+      bind('pdfZoomOut', () => pdfZoomOut());
+      bind('pdfFitWidth', () => pdfFitWidth());
+      bind('pdfDarkInvert', () => pdfToggleDarkInvert());
+      const input = $('pdfPageInput');
+      if (input) {
+        input.addEventListener('change', () => {
+          const val = parseInt(input.value, 10);
+          if (val >= 1 && val <= state.pdfViewer.pageCount) pdfGoToPage(val);
+          else input.value = state.pdfViewer.currentPage;
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+          e.stopPropagation();
+        });
+      }
+    }
+
+    function pdfGoToPage(pageNumber) {
+      const clamped = Math.max(1, Math.min(pageNumber, state.pdfViewer.pageCount));
+      if (clamped !== state.pdfViewer.currentPage) {
+        renderPdfPage(clamped);
+        savePdfPage(state.currentChapter, clamped);
+      }
+    }
+
+    function pdfZoomIn() {
+      state.pdfViewer.zoomMode = 'custom';
+      state.pdfViewer.zoomLevel = Math.min(state.pdfViewer.zoomLevel * 1.25, 5.0);
+      const btn = $('pdfFitWidth'); if (btn) btn.classList.remove('active');
+      renderPdfPage(state.pdfViewer.currentPage);
+    }
+
+    function pdfZoomOut() {
+      state.pdfViewer.zoomMode = 'custom';
+      state.pdfViewer.zoomLevel = Math.max(state.pdfViewer.zoomLevel / 1.25, 0.25);
+      const btn = $('pdfFitWidth'); if (btn) btn.classList.remove('active');
+      renderPdfPage(state.pdfViewer.currentPage);
+    }
+
+    function pdfFitWidth() {
+      state.pdfViewer.zoomMode = 'fit-width';
+      const btn = $('pdfFitWidth'); if (btn) btn.classList.add('active');
+      renderPdfPage(state.pdfViewer.currentPage);
+    }
+
+    function pdfToggleDarkInvert() {
+      state.pdfViewer.darkInvert = !state.pdfViewer.darkInvert;
+      const btn = $('pdfDarkInvert'); if (btn) btn.classList.toggle('active', state.pdfViewer.darkInvert);
+      const canvas = $('pdfCanvas');
+      if (canvas) canvas.classList.toggle('pdf-inverted', state.pdfViewer.darkInvert);
+    }
+
+    async function cleanupPdfDocument() {
+      if (state.pdfViewer.renderTask) { try { state.pdfViewer.renderTask.cancel(); } catch(_) {} }
+      if (state.pdfViewer.document) {
+        try { state.pdfViewer.document.destroy(); } catch(_) {}
+        state.pdfViewer.document = null;
+      }
+      state.pdfViewer.pageCount = 0;
+      state.pdfViewer.currentPage = 1;
+      state.pdfViewer.rendering = false;
+      state.pdfViewer.renderTask = null;
+      for (const page of pdfPageCache.values()) {
+        try { page.cleanup(); } catch(_) {}
+      }
+      pdfPageCache.clear();
+    }
+
+    function isCurrentChapterPdf() {
+      return Boolean(state.chapters[state.currentChapter]?.isPdf);
+    }
+
+    function getChapterGroupInfo(chapterIndex) {
+      const ch = state.chapters[chapterIndex];
+      if (!ch) return { groupIndex: chapterIndex, groupTotal: state.chapters.length, groupLabel: '章节' };
+      const cat = ch.category || 'content';
+      let groupKey;
+      if (cat === 'reference') groupKey = 'reference';
+      else if (ch.isPdf) groupKey = 'manga';
+      else if (ch.isEpubHtml) groupKey = 'ebooks';
+      else groupKey = 'chapters';
+      const groupLabels = { chapters: '章节', manga: '漫画', ebooks: '电子书', reference: '设定' };
+      let groupIndex = 0;
+      let groupTotal = 0;
+      for (let i = 0; i < state.chapters.length; i++) {
+        const c = state.chapters[i];
+        const cc = c.category || 'content';
+        let gk;
+        if (cc === 'reference') gk = 'reference';
+        else if (c.isPdf) gk = 'manga';
+        else if (c.isEpubHtml) gk = 'ebooks';
+        else gk = 'chapters';
+        if (gk === groupKey) {
+          groupTotal++;
+          if (i <= chapterIndex) groupIndex++;
+        }
+      }
+      return { groupIndex: groupIndex - 1, groupTotal, groupLabel: groupLabels[groupKey] || '章节' };
+    }
+
+    function updateNavButtonLabels() {
+      const ch = state.chapters[state.currentChapter];
+      const prevSpan = $('prevPageBtn')?.querySelector('span');
+      const nextSpan = $('nextPageBtn')?.querySelector('span');
+      if (!prevSpan || !nextSpan) return;
+      if (ch?.isPdf) {
+        prevSpan.textContent = '上一页';
+        nextSpan.textContent = '下一页';
+      } else if (ch?.isEpubFile) {
+        prevSpan.textContent = '上一节';
+        nextSpan.textContent = '下一节';
+      } else {
+        prevSpan.textContent = '上一章';
+        nextSpan.textContent = '下一章';
+      }
+    }
+
+    function updateNavButtonStates() {
+      const ch = state.chapters[state.currentChapter];
+      if (!ch) return;
+      if (ch.isPdf) {
+        const atFirst = state.pdfViewer.currentPage <= 1 && state.currentChapter === 0;
+        const atLast = state.pdfViewer.currentPage >= (state.pdfViewer.pageCount || 1) && state.currentChapter >= state.chapters.length - 1;
+        $('prevPageBtn').disabled = atFirst;
+        $('nextPageBtn').disabled = atLast;
+      } else if (ch.isEpubFile) {
+        const epubChs = ch.epubChapters || [];
+        const idx = state.epubViewer.currentEpubChapter || 0;
+        const atFirst = idx <= 0 && state.currentChapter === 0;
+        const atLast = idx >= epubChs.length - 1 && state.currentChapter >= state.chapters.length - 1;
+        $('prevPageBtn').disabled = atFirst;
+        $('nextPageBtn').disabled = atLast;
+      } else {
+        $('prevPageBtn').disabled = state.currentChapter === 0;
+        $('nextPageBtn').disabled = state.currentChapter >= state.chapters.length - 1;
+      }
+    }
+
+    function renderEpubViewer(chapter, chapterIndex) {
+      if (state.pdfViewer.document) { try { state.pdfViewer.document.destroy(); } catch(_) {} state.pdfViewer.document = null; }
+      state.pdfViewer.pageCount = 0;
+      state.pdfViewer.currentPage = 1;
+      state.pdfViewer.renderTask = null;
+      const epubChapters = chapter.epubChapters || [];
+      if (!epubChapters.length) {
+        readerContent.innerHTML = '<div class="epub-viewer-container"><div class="epub-loading">该电子书暂无内容。</div></div>';
+        return;
+      }
+      state.epubViewer.chapters = epubChapters;
+      const savedIdx = getEpubSavedChapter(chapterIndex);
+      const epubIdx = Math.max(0, Math.min(savedIdx, epubChapters.length - 1));
+      state.epubViewer.currentEpubChapter = epubIdx;
+      renderEpubChapter(chapter, chapterIndex, epubIdx);
+    }
+
+    function renderEpubChapter(chapter, chapterIndex, epubIdx) {
+      const epubChapters = chapter.epubChapters || [];
+      const epCh = epubChapters[epubIdx];
+      if (!epCh) return;
+      state.epubViewer.currentEpubChapter = epubIdx;
+      const epContent = (epCh.content || '').replace(/^\uFEFF/, '');
+      const isMd = Boolean(epCh.isMarkdown);
+      const bodyHtml = epCh.htmlContent || (isMd ? renderMarkdown(epContent) : epContent.split(/\n+/).filter(line => line.trim()).map(line => `<p>${escapeHtml(line.trim())}</p>`).join(''));
+      const headerHtml = `<header class="mb-11 text-center"><div class="mb-4 text-[10px] font-bold uppercase tracking-[.17em] text-[var(--accent)]">Chapter ${String(epubIdx + 1).padStart(2, '0')}</div><h1 class="chapter-title">${escapeHtml(epCh.title || '')}</h1><div class="chapter-divider"></div><div class="chapter-meta"><span>第 ${epubIdx + 1} / ${epubChapters.length} 章</span><span class="meta-dot"></span><span class="meta-accent">${formatNumber(getWordCount(epContent, isMd))} 字</span></div></header>`;
+      const endHtml = '<div class="chapter-end"><i class="fa-solid fa-feather-pointed mr-2 text-[var(--accent)]"></i>本章完</div>';
+      const navOptions = epubChapters.map((ch, i) => `<option value="${i}"${i === epubIdx ? ' selected' : ''}>${escapeHtml(ch.title || ('第 ' + (i + 1) + ' 章'))}</option>`).join('');
+      const navHtml = `<div class="epub-nav-bar"><button type="button" id="epubPrevChBtn" title="上一节 (←)" ${epubIdx === 0 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button><select class="epub-nav-select" id="epubNavSelect">${navOptions}</select><button type="button" id="epubNextChBtn" title="下一节 (→)" ${epubIdx >= epubChapters.length - 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button></div>`;
+      readerContent.innerHTML = `<div class="epub-viewer-container">${navHtml}${headerHtml}<div class="chapter-body${epCh.htmlContent ? ' epub-html' : ''}${epCh.isCover ? ' epub-cover' : ''}">${bodyHtml || '<p>本章暂无正文。</p>'}</div>${endHtml}</div>`;
+      const prevBtn = $('epubPrevChBtn');
+      const nextBtn = $('epubNextChBtn');
+      const navSel = $('epubNavSelect');
+      if (prevBtn) prevBtn.addEventListener('click', () => epubGoToChapter(epubIdx - 1));
+      if (nextBtn) nextBtn.addEventListener('click', () => epubGoToChapter(epubIdx + 1));
+      if (navSel) navSel.addEventListener('change', () => { const idx = Number(navSel.value); if (!Number.isNaN(idx)) epubGoToChapter(idx); });
+      applyReadingSettings();
+      applyTextMarks();
+      renderChapterList();
+      $('sourceBackupBtn').classList.toggle('show', false);
+      syncMobileMoreActions();
+      updateNavButtonLabels();
+      updateNavButtonStates();
+      readerContainer.scrollTop = 0;
+      progressFill.style.width = `${epubChapters.length > 0 ? ((epubIdx + 1) / epubChapters.length) * 100 : 0}%`;
+      saveProgress();
+      saveEpubChapter(chapterIndex, epubIdx);
+    }
+
+    function getEpubSavedChapter(chapterIndex) {
+      try {
+        const key = 'reader_epub_chapters';
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        const libKey = state.libraryIdentity || state.bookTitle;
+        const pages = data[libKey];
+        if (pages && typeof pages[chapterIndex] === 'number') return pages[chapterIndex];
+      } catch(_) {}
+      return 0;
+    }
+
+    function saveEpubChapter(chapterIndex, epubIdx) {
+      try {
+        const key = 'reader_epub_chapters';
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        const libKey = state.libraryIdentity || state.bookTitle;
+        if (!data[libKey]) data[libKey] = {};
+        data[libKey][chapterIndex] = epubIdx;
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch(_) {}
+    }
+
+    function epubGoToChapter(epubIdx) {
+      const chapter = state.chapters[state.currentChapter];
+      if (!chapter || !chapter.isEpubFile) return;
+      const epubChapters = chapter.epubChapters || [];
+      const clamped = Math.max(0, Math.min(epubIdx, epubChapters.length - 1));
+      if (clamped !== state.epubViewer.currentEpubChapter) {
+        renderEpubChapter(chapter, state.currentChapter, clamped);
+      }
+    }
+
+    async function lazyLoadChapter(chapter) {
+      if (!chapter.lazyFolder || !chapter.lazyPath || !isDesktop) return;
+      if (chapter.isEpubFile) {
+        if (chapter.epubChapters && chapter.epubChapters.length > 0) return;
+        try {
+          const result = await desktopApi.readFolderFile(chapter.lazyFolder, chapter.lazyPath);
+          const file = nativeFileFromResult(result);
+          const parsed = await parseEpubFile(file);
+          chapter.epubChapters = parsed.chapters.map((ch, i) => ({ ...ch, sourceKey: `${chapter.filename}\u0000${ch.sourceKey || ch.title}\u0000${i}` }));
+          chapter.title = parsed.title || chapter.title;
+          chapter.lazyFolder = '';
+          chapter.lazyPath = '';
+        } catch(e) {
+          console.error('Lazy epub load failed:', e);
+          chapter.epubChapters = [{ title: '加载失败', content: '请重新导入文件夹' }];
+        }
+        return;
+      }
+      if (chapter.content !== null) return;
+      try {
+        const result = await desktopApi.readFolderFile(chapter.lazyFolder, chapter.lazyPath);
+        const file = nativeFileFromResult(result);
+        const content = await readFile(file);
+        chapter.content = content;
+        if (!chapter.wordCount) chapter.wordCount = getWordCount(getChapterBodyContent(chapter), chapter.isMarkdown);
+        chapter.lazyFolder = '';
+        chapter.lazyPath = '';
+        const relativePath = chapter.filename || '';
+        if (relativePath) {
+          state.sourceDocuments[relativePath] = { content, encoding: file.readerEncoding || '', bom: Boolean(file.readerBom) };
+        }
+      } catch(e) {
+        console.error('Lazy chapter load failed:', e);
+        chapter.content = '（加载失败，请重新导入文件夹）';
+      }
+    }
+
     async function selectChapter(index) {
       if (!state.chapters[index]) return false;
+      if ((state.chapters[state.currentChapter]?.isPdf || state.chapters[state.currentChapter]?.isEpubFile) && !state.chapters[index]?.isPdf && !state.chapters[index]?.isEpubFile) {
+        await cleanupPdfDocument();
+      }
       if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText) {
         const action = await askUnsavedAction('switch');
         if (action === 'keep') return false;
@@ -3711,6 +4277,13 @@
         setDirectEditing(false);
       } else if (state.directEditing) {
         setDirectEditing(false);
+      }
+      const ch = state.chapters[index];
+      const needsLazyLoad = (ch && ch.lazyFolder && (ch.content === null || (ch.isEpubFile && (!ch.epubChapters || !ch.epubChapters.length))));
+      if (needsLazyLoad) {
+        showLoading(true);
+        await lazyLoadChapter(ch);
+        showLoading(false);
       }
       renderChapter(index);
       if (window.innerWidth < 841) toggleSidebar(false);
@@ -3787,25 +4360,111 @@
     }
 
     async function loadFromFileItems(items, bookTitle, folderHandle = null, options = {}) {
-      const supported = items
-        .filter(item => item?.file && isSupportedFile(item.file))
+      const textItems = items
+        .filter(item => (item?.file && isSupportedFile(item.file)) || (item?.lazyLoad && /\.(txt|md|markdown)$/i.test(item?.lazyFileName || item?.relativePath || '')))
         .sort((a, b) => naturalCompare(a.relativePath || a.file.name, b.relativePath || b.file.name));
-      if (!supported.length) { showToast('没有找到 TXT 或 Markdown 文件'); return false; }
+      const pdfItems = items
+        .filter(item => (item?.file && isPdfFile(item.file)) || (item?.lazyLoad && /\.pdf$/i.test(item?.lazyFileName || item?.relativePath || '')))
+        .sort((a, b) => naturalCompare(a.relativePath || a.file.name, b.relativePath || b.file.name));
+      const epubItems = items
+        .filter(item => item?.isEpub || (item?.file && /\.epub$/i.test(item.file.name)) || (item?.lazyLoad && /\.epub$/i.test(item?.lazyFileName || item?.relativePath || '')))
+        .sort((a, b) => naturalCompare(a.relativePath || a.file.name, b.relativePath || b.file.name));
+      if (!textItems.length && !pdfItems.length && !epubItems.length) { showToast('没有找到可阅读的文件'); return false; }
 
       const chapters = [];
       const sourceDocuments = {};
-      for (const item of supported) {
-        const relativePath = item.relativePath || item.file.webkitRelativePath || item.file.name;
-        const content = await readFile(item.file);
-        sourceDocuments[relativePath] = { content, encoding: item.file.readerEncoding || '', bom: Boolean(item.file.readerBom) };
-        chapters.push(...chaptersFromTextContent(content, item.file.name, relativePath, item.category || 'content'));
+      for (const item of textItems) {
+        const relativePath = item.relativePath || item.file?.webkitRelativePath || item.file?.name || item.lazyFileName || '';
+        const fileName = item.file?.name || item.lazyFileName || '';
+        if (item.file && item.file.size > 0) {
+          const content = await readFile(item.file);
+          sourceDocuments[relativePath] = { content, encoding: item.file.readerEncoding || '', bom: Boolean(item.file.readerBom) };
+          const textChapters = chaptersFromTextContent(content, fileName, relativePath, item.category || 'content');
+          textChapters.forEach(ch => { ch.wordCount = getWordCount(getChapterBodyContent(ch), ch.isMarkdown); });
+          chapters.push(...textChapters);
+        } else {
+          const isMd = /\.(md|markdown)$/i.test(fileName);
+          chapters.push({
+            title: getFilenameWithoutExtension(fileName),
+            content: null,
+            filename: relativePath,
+            sourceKey: `${relativePath}\u0000${getFilenameWithoutExtension(fileName)}`,
+            isMarkdown: isMd,
+            isEpubHtml: false,
+            isPdf: false,
+            lazyFolder: item.folderPath || '',
+            lazyPath: relativePath,
+            wordCount: typeof item.wordCount === 'number' ? item.wordCount : 0,
+            category: item.category || 'content'
+          });
+        }
+      }
+      for (const item of pdfItems) {
+        const relativePath = item.relativePath || item.file?.webkitRelativePath || item.file?.name || item.lazyFileName || '';
+        const fileName = item.file?.name || item.lazyFileName || '';
+        if (item.file && item.file.size > 0) {
+          const buffer = await readBinaryFile(item.file);
+          chapters.push({
+            title: getFilenameWithoutExtension(fileName),
+            content: '',
+            filename: relativePath,
+            sourceKey: `${relativePath}\u0000pdf`,
+            isMarkdown: false,
+            isEpubHtml: false,
+            isPdf: true,
+            pdfBuffer: buffer,
+            category: item.category || 'content'
+          });
+        } else {
+          chapters.push({
+            title: getFilenameWithoutExtension(fileName),
+            content: '',
+            filename: relativePath,
+            sourceKey: `${relativePath}\u0000pdf`,
+            isMarkdown: false,
+            isEpubHtml: false,
+            isPdf: true,
+            pdfBuffer: null,
+            pdfLazyFolder: item.folderPath || '',
+            pdfLazyPath: relativePath,
+            category: item.category || 'content'
+          });
+        }
+      }
+      for (const item of epubItems) {
+        const relativePath = item.relativePath || item.file?.webkitRelativePath || item.file?.name || item.lazyFileName || '';
+        const fileName = item.file?.name || item.lazyFileName || '';
+        if ((!item.file || item.file.size === 0) && isDesktop && item.folderPath) {
+          try {
+            const result = await desktopApi.readFolderFile(item.folderPath, relativePath);
+            item.file = nativeFileFromResult(result);
+          } catch(e) { console.error('Lazy epub load failed:', relativePath, e); continue; }
+        }
+        try {
+          const parsed = await parseEpubFile(item.file);
+          const epubTitle = parsed.title || getFilenameWithoutExtension(fileName);
+          chapters.push({
+            title: epubTitle,
+            content: '',
+            filename: relativePath,
+            sourceKey: `${relativePath}\u0000epub`,
+            isMarkdown: false,
+            isEpubHtml: false,
+            isPdf: false,
+            isEpubFile: true,
+            epubChapters: parsed.chapters.map((ch, i) => ({ ...ch, sourceKey: `${relativePath}\u0000${ch.sourceKey || ch.title}\u0000${i}` })),
+            lazyFolder: item.folderPath || '',
+            lazyPath: relativePath,
+            category: item.category || 'content'
+          });
+        } catch(e) { console.error('EPUB parse error in folder:', fileName, e); }
       }
       return loadParsedChapters(chapters, bookTitle, folderHandle, { ...options, sourceDocuments });
     }
 
     async function loadFromFiles(files) {
       const items = normalizeFileItems(files);
-      if (!items.length) { showToast('没有找到 TXT 或 Markdown 文件'); return; }
+      if (!items.length) { showToast('没有找到可阅读的文件'); return; }
       showLoading(true);
       try {
         const firstPath = items[0].relativePath;
@@ -3824,6 +4483,7 @@
       try {
         const parsed = await parseBookFile(file);
         setFolderSource(null);
+        parsed.chapters.forEach(ch => { if (!ch.isPdf && !ch.isEpubFile) ch.wordCount = getWordCount(getChapterBodyContent(ch), ch.isMarkdown); });
         const loaded = await loadParsedChapters(parsed.chapters, parsed.title || getFilenameWithoutExtension(file.name), null, {
           ...options,
           sourceDocuments: parsed.sourceDocuments || {}
@@ -3844,7 +4504,7 @@
 
     async function loadBookFiles(files) {
       const supported = Array.from(files || []).filter(isBookFile);
-      if (!supported.length) { showToast('请选择 TXT、EPUB 或 ZIP 文件'); return; }
+      if (!supported.length) { showToast('请选择 TXT、EPUB、PDF 或 ZIP 文件'); return; }
       if (supported.length > 1) {
         showToast('一次请选择一本书');
         return;
@@ -3884,6 +4544,8 @@
 
     async function showHome() {
       if (state.directEditing && !(await exitDirectEditing())) return false;
+      await cleanupPdfDocument();
+      state.epubViewer = { chapters: [], currentEpubChapter: 0 };
       if (state.chapters.length && !state.demo) await saveLibrarySnapshot();
       toggleSidebar(false);
       settingsPanel.classList.remove('show');
@@ -4008,18 +4670,41 @@
     }
     function saveProgress() {
       if (!state.bookTitle || state.demo) return;
-      setStoredJson(getProgressStorageKey(), { chapter: state.currentChapter, scroll: readerContainer.scrollTop });
+      const chapter = state.chapters[state.currentChapter];
+      const progressData = { chapter: state.currentChapter, scroll: readerContainer.scrollTop };
+      if (chapter && chapter.isEpubFile) {
+        progressData.epubChapter = state.epubViewer.currentEpubChapter;
+        saveEpubChapter(state.currentChapter, state.epubViewer.currentEpubChapter);
+      } else if (chapter && chapter.isPdf) {
+        progressData.pdfPage = state.pdfViewer.currentPage;
+        savePdfPage(state.currentChapter, state.pdfViewer.currentPage);
+      }
+      setStoredJson(getProgressStorageKey(), progressData);
       updateHistoryProgress();
     }
-    function restoreProgress() {
+    async function restoreProgress() {
       if (state.demo) return;
       const saved = getSavedProgress();
       if (saved && saved.chapter < state.chapters.length) {
+        const ch = state.chapters[saved.chapter];
+        const needsLazy = ch && ch.lazyFolder && (ch.content === null || (ch.isEpubFile && (!ch.epubChapters || !ch.epubChapters.length)));
+        if (needsLazy) {
+          showLoading(true);
+          await lazyLoadChapter(ch);
+          showLoading(false);
+        }
         renderChapter(saved.chapter, { saveProgress: false });
-        requestAnimationFrame(() => {
-          readerContainer.scrollTop = saved.scroll || 0;
-          saveProgress();
-        });
+        const chapter = state.chapters[saved.chapter];
+        if (chapter && chapter.isEpubFile) {
+          // Epub chapter is restored inside renderEpubViewer via getEpubSavedChapter
+        } else if (chapter && chapter.isPdf && saved.pdfPage) {
+          // PDF page is restored inside renderPdfViewer via getPdfSavedPage
+        } else {
+          requestAnimationFrame(() => {
+            readerContainer.scrollTop = saved.scroll || 0;
+            saveProgress();
+          });
+        }
       }
     }
 
@@ -4029,7 +4714,7 @@
     ['dragleave', 'drop'].forEach(type => folderUploadBox.addEventListener(type, event => { event.preventDefault(); folderUploadBox.classList.remove('dragover'); }));
     folderUploadBox.addEventListener('drop', event => {
       const files = Array.from(event.dataTransfer.files || []);
-      const hasDroppedBook = files.some(file => /\.(epub|zip)$/i.test(file.name)) || (files.length === 1 && isBookFile(files[0]) && !files[0].webkitRelativePath);
+      const hasDroppedBook = files.some(file => /\.(epub|zip|pdf)$/i.test(file.name)) || (files.length === 1 && isBookFile(files[0]) && !files[0].webkitRelativePath);
       if (hasDroppedBook) loadBookFiles(files);
       else loadFromFiles(files);
     });
@@ -4162,6 +4847,47 @@
       openFloatingPanel('settings');
     });
     $('closeSettingsBtn').addEventListener('click', () => settingsPanel.classList.remove('show'));
+    $('changeStoragePathBtn')?.addEventListener('click', async () => {
+      if (!desktopApi?.chooseStoragePath || !desktopApi?.migrateStorage) return;
+      try {
+        const newPath = await desktopApi.chooseStoragePath();
+        if (!newPath) return;
+        const info = await desktopApi.getStorageInfo();
+        if (newPath === info.defaultPath && !info.isCustom) {
+          showToast('已在默认位置，无需更改');
+          return;
+        }
+        showToast('正在迁移数据，请勿关闭应用...');
+        showLoading(true);
+        const result = await desktopApi.migrateStorage(newPath);
+        showLoading(false);
+        if (result.success) {
+          showToast('数据迁移完成，应用即将重启');
+          setTimeout(() => { desktopApi.confirmClose && desktopApi.confirmClose(); location.reload(); }, 1500);
+        }
+      } catch(e) {
+        showLoading(false);
+        console.error(e);
+        showToast(e?.message || '迁移失败，请重试');
+      }
+    });
+    $('resetStoragePathBtn')?.addEventListener('click', async () => {
+      if (!desktopApi?.resetStoragePath) return;
+      try {
+        showToast('正在恢复默认存储位置...');
+        showLoading(true);
+        const result = await desktopApi.resetStoragePath();
+        showLoading(false);
+        if (result.success) {
+          showToast('已恢复默认位置，应用即将重启');
+          setTimeout(() => { desktopApi.confirmClose && desktopApi.confirmClose(); location.reload(); }, 1500);
+        }
+      } catch(e) {
+        showLoading(false);
+        console.error(e);
+        showToast(e?.message || '恢复失败，请重试');
+      }
+    });
     $('exportAppDataBtn').addEventListener('click', async () => {
       if (!desktopApi?.exportAppData) return;
       try {
@@ -4257,6 +4983,7 @@
     });
     window.addEventListener('scroll', hideContextMenu, true);
     window.addEventListener('resize', hideContextMenu);
+    window.addEventListener('resize', () => { if (isCurrentChapterPdf() && state.pdfViewer.zoomMode === 'fit-width') { renderPdfPage(state.pdfViewer.currentPage); } });
     document.addEventListener('keydown', event => { if (event.key === 'Escape') hideContextMenu(); });
     document.querySelectorAll('[data-export-scope]').forEach(button => button.addEventListener('click', () => {
       state.exportScope = button.dataset.exportScope === 'book' ? 'book' : 'current';
@@ -4304,8 +5031,39 @@ $('replaceCancelBtn').addEventListener('click', closeReplaceDialog);
     document.querySelectorAll('.theme-swatch').forEach(button => button.addEventListener('click', () => { state.theme = button.dataset.theme; document.body.dataset.theme = state.theme; document.querySelectorAll('.theme-swatch').forEach(el => el.classList.toggle('active', el === button)); saveSettings(); }));
     document.querySelectorAll('[data-font]').forEach(button => button.addEventListener('click', () => { state.fontFamily = button.dataset.font; markCustomReadingSettings(); applyReadingSettings(); saveSettings(); }));
     document.querySelectorAll('[data-line]').forEach(button => button.addEventListener('click', () => { state.lineHeight = Number(button.dataset.line); markCustomReadingSettings(); applyReadingSettings(); saveSettings(); }));
-    $('prevPageBtn').addEventListener('click', () => { if (state.currentChapter > 0) selectChapter(state.currentChapter - 1); });
-    $('nextPageBtn').addEventListener('click', () => { if (state.currentChapter < state.chapters.length - 1) selectChapter(state.currentChapter + 1); });
+    $('prevPageBtn').addEventListener('click', () => {
+      const ch = state.chapters[state.currentChapter];
+      if (ch?.isPdf) {
+        if (state.pdfViewer.currentPage > 1) { pdfGoToPage(state.pdfViewer.currentPage - 1); }
+        else if (state.currentChapter > 0) { selectChapter(state.currentChapter - 1); }
+        return;
+      }
+      if (ch?.isEpubFile) {
+        const epubChs = ch.epubChapters || [];
+        const idx = state.epubViewer.currentEpubChapter || 0;
+        if (idx > 0) { epubGoToChapter(idx - 1); }
+        else if (state.currentChapter > 0) { selectChapter(state.currentChapter - 1); }
+        return;
+      }
+      if (state.currentChapter > 0) selectChapter(state.currentChapter - 1);
+    });
+    $('nextPageBtn').addEventListener('click', () => {
+      const ch = state.chapters[state.currentChapter];
+      if (ch?.isPdf) {
+        const pageCount = state.pdfViewer.pageCount || 1;
+        if (state.pdfViewer.currentPage < pageCount) { pdfGoToPage(state.pdfViewer.currentPage + 1); }
+        else if (state.currentChapter < state.chapters.length - 1) { selectChapter(state.currentChapter + 1); }
+        return;
+      }
+      if (ch?.isEpubFile) {
+        const epubChs = ch.epubChapters || [];
+        const idx = state.epubViewer.currentEpubChapter || 0;
+        if (idx < epubChs.length - 1) { epubGoToChapter(idx + 1); }
+        else if (state.currentChapter < state.chapters.length - 1) { selectChapter(state.currentChapter + 1); }
+        return;
+      }
+      if (state.currentChapter < state.chapters.length - 1) selectChapter(state.currentChapter + 1);
+    });
     $('scrollTopBtn').addEventListener('click', () => { readerContainer.scrollTo({ top: 0, behavior: 'smooth' }); });
     $('scrollBottomBtn').addEventListener('click', () => { readerContainer.scrollTo({ top: readerContainer.scrollHeight, behavior: 'smooth' }); });
     readerContainer.addEventListener('scroll', () => { const max = readerContent.scrollHeight - readerContainer.clientHeight; progressFill.style.width = `${max > 0 ? (readerContainer.scrollTop / max) * 100 : 0}%`; saveProgress(); });
@@ -4343,6 +5101,23 @@ $('replaceCancelBtn').addEventListener('click', closeReplaceDialog);
         return;
       }
       if (event.target.matches('input, textarea, button')) return;
+      const currentCh = state.chapters[state.currentChapter];
+      if (currentCh?.isEpubFile) {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'PageUp') { event.preventDefault(); epubGoToChapter(state.epubViewer.currentEpubChapter - 1); return; }
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'PageDown') { event.preventDefault(); epubGoToChapter(state.epubViewer.currentEpubChapter + 1); return; }
+        if (event.key === 'Home') { event.preventDefault(); epubGoToChapter(0); return; }
+        if (event.key === 'End') { event.preventDefault(); epubGoToChapter(state.epubViewer.chapters.length - 1); return; }
+        return;
+      }
+      if (isCurrentChapterPdf()) {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'PageUp') { event.preventDefault(); pdfGoToPage(state.pdfViewer.currentPage - 1); return; }
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'PageDown') { event.preventDefault(); pdfGoToPage(state.pdfViewer.currentPage + 1); return; }
+        if (event.key === 'Home') { event.preventDefault(); pdfGoToPage(1); return; }
+        if (event.key === 'End') { event.preventDefault(); pdfGoToPage(state.pdfViewer.pageCount); return; }
+        if (event.key === '+' || event.key === '=') { event.preventDefault(); pdfZoomIn(); return; }
+        if (event.key === '-' || event.key === '_') { event.preventDefault(); pdfZoomOut(); return; }
+        return;
+      }
       if (event.key === 'ArrowLeft' || event.key === 'PageUp') $('prevPageBtn').click();
       if (event.key === 'ArrowRight' || event.key === 'PageDown') $('nextPageBtn').click();
       if (event.key.toLowerCase() === 'b') toggleSidebar();
@@ -4479,6 +5254,14 @@ $('replaceCancelBtn').addEventListener('click', closeReplaceDialog);
       await initializeDesktopStorage();
       loadSettings();
       $('dataTransferSection').hidden = !isDesktop;
+      $('storagePathSection').hidden = !isDesktop;
+      if (isDesktop && desktopApi?.getStorageInfo) {
+        try {
+          const info = await desktopApi.getStorageInfo();
+          $('currentStoragePath').textContent = info.currentPath || '-';
+          $('resetStoragePathBtn').hidden = !info.isCustom;
+        } catch(_) {}
+      }
       initializeUpdater();
       if (isDesktop) {
         desktopApi.onCloseRequested?.(() => { handleCloseRequest(); });

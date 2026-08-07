@@ -20,7 +20,8 @@
     "@fortawesome/fontawesome-free": "^6.7.2",
     "electron-updater": "^6.8.9",
     "iconv-lite": "^0.7.3",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^3.11.174"
   },
   "devDependencies": {
     "electron": "^37.10.3",
@@ -77,6 +78,12 @@
         "name": "QuietReader.epub",
         "description": "EPUB 电子书",
         "role": "Editor"
+      },
+      {
+        "ext": "pdf",
+        "name": "QuietReader.pdf",
+        "description": "PDF 电子书",
+        "role": "Viewer"
       }
     ]
   }

@@ -7,18 +7,32 @@ const iconv = require('iconv-lite');
 const JSZip = require('jszip');
 
 const APP_NAME = '静读阅读器';
-const BOOK_EXTENSIONS = new Set(['.epub', '.txt', '.md', '.markdown', '.zip']);
+const BOOK_EXTENSIONS = new Set(['.epub', '.txt', '.md', '.markdown', '.zip', '.pdf']);
 const TEXT_EXTENSIONS = new Set(['.txt', '.md', '.markdown']);
 const CONTENT_FOLDER_NAMES = ['正文', '章节', 'chapters', 'content'];
 
 function classifyFileCategory(relativePath) {
   const parts = relativePath.split('/');
-  parts.pop(); // remove filename, keep folder path
-  if (parts.length === 0) return 'reference'; // root-level files → reference
+  const filename = parts.pop() || '';
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.pdf' || ext === '.epub') return 'content';
+  if (parts.length === 0) return 'reference';
   const topFolder = parts[0].toLowerCase();
   if (CONTENT_FOLDER_NAMES.some(k => topFolder === k.toLowerCase() || topFolder.startsWith(k.toLowerCase()))) return 'content';
   return 'reference';
 }
+
+function detectTextEncoding(buffer) {
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) return { encoding: 'utf8', bom: true };
+  if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) return { encoding: 'utf16le', bom: true };
+  if (buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF) return { encoding: 'utf16be', bom: true };
+  return { encoding: 'utf8', bom: false };
+}
+
+function countTextWords(text) {
+  return String(text || '').replace(/^\uFEFF/, '').trim().replace(/\s+/g, '').length;
+}
+
 const SOURCE_BACKUP_KEEP_COUNT = 10;
 const APP_DATA_ARCHIVE_KIND = 'quiet-reader-data';
 const APP_DATA_ARCHIVE_VERSION = 1;
@@ -27,8 +41,51 @@ const MAX_APP_DATA_STORAGE_BYTES = 32 * 1024 * 1024;
 const MAX_APP_DATA_BACKUP_FILES = 5000;
 const isDevelopment = !app.isPackaged || process.argv.includes('--dev');
 const configuredUserDataPath = String(process.env.QUIET_READER_USER_DATA || '').trim();
+const nodeFsSync = require('node:fs');
 
 if (configuredUserDataPath) app.setPath('userData', path.resolve(configuredUserDataPath));
+
+// ── Custom storage path ──
+const DEFAULT_USER_DATA = app.getPath('userData');
+const STORAGE_CONFIG_FILE = path.join(DEFAULT_USER_DATA, 'storage-config.json');
+
+function readStorageConfig() {
+  try {
+    const raw = nodeFsSync.readFileSync(STORAGE_CONFIG_FILE, 'utf8');
+    const cfg = JSON.parse(raw);
+    return cfg && typeof cfg === 'object' ? cfg : {};
+  } catch (_) { return {}; }
+}
+
+function writeStorageConfig(cfg) {
+  try {
+    nodeFsSync.mkdirSync(path.dirname(STORAGE_CONFIG_FILE), { recursive: true });
+    nodeFsSync.writeFileSync(STORAGE_CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
+  } catch (e) { console.error('Failed to write storage config:', e); }
+}
+
+function getDefaultUserDataPath() { return DEFAULT_USER_DATA; }
+function getCurrentUserDataPath() { return app.getPath('userData'); }
+function isUsingCustomStorage() {
+  const cfg = readStorageConfig();
+  return Boolean(cfg.customPath && path.resolve(cfg.customPath) !== path.resolve(DEFAULT_USER_DATA));
+}
+
+// Apply custom storage path from config (unless env var already set)
+if (!configuredUserDataPath) {
+  const cfg = readStorageConfig();
+  if (cfg.customPath) {
+    const resolved = path.resolve(cfg.customPath);
+    if (resolved !== path.resolve(DEFAULT_USER_DATA)) {
+      try {
+        nodeFsSync.mkdirSync(resolved, { recursive: true });
+        app.setPath('userData', resolved);
+      } catch (e) {
+        console.error('Failed to set custom userData path, using default:', e);
+      }
+    }
+  }
+}
 
 app.setName(APP_NAME);
 
@@ -520,6 +577,7 @@ function mimeTypeFor(filePath) {
   const extension = path.extname(filePath).toLowerCase();
   if (extension === '.epub') return 'application/epub+zip';
   if (extension === '.zip') return 'application/zip';
+  if (extension === '.pdf') return 'application/pdf';
   if (extension === '.md' || extension === '.markdown') return 'text/markdown';
   return 'text/plain';
 }
@@ -590,18 +648,64 @@ async function collectFolderItems(folderPath, prefix = '') {
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       items.push(...await collectFolderItems(fullPath, relativePath));
-    } else if (entry.isFile() && TEXT_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
-      const bytes = await fs.readFile(fullPath);
-      const textInfo = decodeTextFile(bytes);
-      items.push({
-        name: entry.name,
-        relativePath,
-        type: mimeTypeFor(entry.name),
-        bytes,
-        encoding: textInfo.encoding,
-        bom: textInfo.bom,
-        category: classifyFileCategory(relativePath)
-      });
+    } else if (entry.isFile()) {
+      const ext = path.extname(entry.name).toLowerCase();
+      if (TEXT_EXTENSIONS.has(ext)) {
+        let wordCount = 0;
+        try {
+          const raw = await fs.readFile(fullPath);
+          let decoded;
+          if (raw.length >= 3 && raw[0] === 0xEF && raw[1] === 0xBB && raw[2] === 0xBF) {
+            decoded = iconv.decode(raw, 'utf8').replace(/^\uFEFF/, '');
+          } else if (raw.length >= 2 && raw[0] === 0xFF && raw[1] === 0xFE) {
+            decoded = iconv.decode(raw.subarray(2), 'utf16le').replace(/^\uFEFF/, '');
+          } else if (raw.length >= 2 && raw[0] === 0xFE && raw[1] === 0xFF) {
+            decoded = iconv.decode(raw.subarray(2), 'utf16be').replace(/^\uFEFF/, '');
+          } else {
+            try {
+              decoded = iconv.decode(raw, 'utf8');
+              if (decoded.includes('\uFFFD')) decoded = iconv.decode(raw, 'gb18030');
+            } catch (_) {
+              decoded = iconv.decode(raw, 'gb18030');
+            }
+            decoded = decoded.replace(/^\uFEFF/, '');
+          }
+          wordCount = countTextWords(decoded);
+        } catch (_) {}
+        items.push({
+          name: entry.name,
+          relativePath,
+          type: mimeTypeFor(entry.name),
+          bytes: null,
+          lazyLoad: true,
+          encoding: '',
+          bom: false,
+          category: classifyFileCategory(relativePath),
+          wordCount
+        });
+      } else if (ext === '.pdf') {
+        items.push({
+          name: entry.name,
+          relativePath,
+          type: 'application/pdf',
+          bytes: null,
+          lazyLoad: true,
+          encoding: '',
+          bom: false,
+          category: classifyFileCategory(relativePath)
+        });
+      } else if (ext === '.epub') {
+        items.push({
+          name: entry.name,
+          relativePath,
+          type: 'application/epub+zip',
+          bytes: null,
+          lazyLoad: true,
+          encoding: '',
+          bom: false,
+          category: classifyFileCategory(relativePath)
+        });
+      }
     }
   }
   return items;
@@ -871,6 +975,25 @@ async function writeTextFilesAtomically(request) {
   return { count: targets.length, backups: targets.length };
 }
 
+async function copyDirRecursive(src, dest) {
+  await fs.mkdir(dest, { recursive: true });
+  const srcResolved = path.resolve(src);
+  const destResolved = path.resolve(dest);
+  const entries = await fs.readdir(srcResolved, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(srcResolved, entry.name);
+    const destPath = path.join(destResolved, entry.name);
+    if (entry.name === 'storage-config.json') continue;
+    if (entry.isDirectory()) {
+      const srcDirResolved = path.resolve(srcPath);
+      if (destResolved.startsWith(srcDirResolved + path.sep) || destResolved === srcDirResolved) continue;
+      await copyDirRecursive(srcPath, destPath);
+    } else if (entry.isFile()) {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1240,
@@ -960,7 +1083,7 @@ if (!gotTheLock) {
       const result = await dialog.showOpenDialog(mainWindow, {
         title: '导入书籍',
         properties: ['openFile'],
-        filters: [{ name: '书籍文件', extensions: ['epub', 'txt', 'md', 'markdown', 'zip'] }]
+        filters: [{ name: '书籍文件', extensions: ['epub', 'txt', 'md', 'markdown', 'zip', 'pdf'] }]
       });
       return result.canceled ? null : result.filePaths[0] || null;
     });
@@ -980,6 +1103,24 @@ if (!gotTheLock) {
       if (!stat.isDirectory()) throw new Error('指定的路径不是文件夹');
       readableSources.set(resolvedPath, 'folder');
       return { path: resolvedPath, title: path.basename(resolvedPath), items: await collectFolderItems(resolvedPath) };
+    });
+    ipcMain.handle('reader:read-folder-file', async (_event, folderPath, relativePath) => {
+      const resolvedFolder = path.resolve(String(folderPath || ''));
+      if (!readableSources.has(resolvedFolder)) throw new Error('该文件夹未在本次运行中导入');
+      const resolvedFile = path.resolve(resolvedFolder, String(relativePath || ''));
+      if (resolvedFile.includes('..') || !resolvedFile.startsWith(resolvedFolder)) throw new Error('路径不合法');
+      const stat = await fs.stat(resolvedFile);
+      if (!stat.isFile()) throw new Error('文件不存在');
+      const bytes = await fs.readFile(resolvedFile);
+      const ext = path.extname(resolvedFile).toLowerCase();
+      return {
+        name: path.basename(resolvedFile),
+        relativePath,
+        type: mimeTypeFor(resolvedFile),
+        bytes,
+        encoding: '',
+        bom: false
+      };
     });
     ipcMain.handle('reader:write-source-files', async (_event, request) => writeTextFilesAtomically(request));
     ipcMain.handle('reader:list-source-backups', async (_event, request) => listSourceBackups(request));
@@ -1010,6 +1151,78 @@ if (!gotTheLock) {
       const recoveryMessage = storageRecoveryNotice;
       storageRecoveryNotice = '';
       return { data, recoveryMessage };
+    });
+    ipcMain.handle('reader:get-storage-info', () => {
+      return {
+        currentPath: getCurrentUserDataPath(),
+        defaultPath: getDefaultUserDataPath(),
+        isCustom: isUsingCustomStorage()
+      };
+    });
+    ipcMain.handle('reader:choose-storage-path', async () => {
+      const result = await dialog.showOpenDialog({
+        title: '选择数据存储位置',
+        properties: ['openDirectory', 'createDirectory']
+      });
+      if (result.canceled || !result.filePaths.length) return null;
+      return path.join(result.filePaths[0], 'quiet-reader');
+    });
+    ipcMain.handle('reader:migrate-storage', async (_event, newPath) => {
+      if (!newPath || typeof newPath !== 'string') throw new Error('未指定目标路径');
+      const resolved = path.resolve(newPath);
+      const currentPath = path.resolve(getCurrentUserDataPath());
+      if (currentPath === resolved) throw new Error('目标路径与当前路径相同');
+      if (resolved.startsWith(currentPath + path.sep) || resolved === currentPath) throw new Error('目标路径不能是当前数据目录的子目录');
+      if (currentPath.startsWith(resolved + path.sep)) throw new Error('目标路径不能包含当前数据目录');
+      // Only migrate essential data, skip Electron caches
+      const essentialFiles = ['reader-data.json'];
+      const essentialDirs = ['source-backups'];
+      await fs.mkdir(resolved, { recursive: true });
+      for (const name of essentialFiles) {
+        const src = path.join(currentPath, name);
+        const dest = path.join(resolved, name);
+        try { await fs.copyFile(src, dest); } catch (_) {}
+      }
+      for (const name of essentialDirs) {
+        const src = path.join(currentPath, name);
+        const dest = path.join(resolved, name);
+        try {
+          const stat = await fs.stat(src).catch(() => null);
+          if (stat && stat.isDirectory()) {
+            await copyDirRecursive(src, dest);
+          }
+        } catch (_) {}
+      }
+      // Update config at default location
+      writeStorageConfig({ customPath: resolved });
+      return { success: true, newPath: resolved };
+    });
+    ipcMain.handle('reader:reset-storage-path', async () => {
+      const currentPath = path.resolve(getCurrentUserDataPath());
+      const defaultPath = path.resolve(getDefaultUserDataPath());
+      if (currentPath !== defaultPath) {
+        // Only copy essential data files, skip caches and nested directories
+        const essentialFiles = ['reader-data.json'];
+        const essentialDirs = ['source-backups'];
+        await fs.mkdir(defaultPath, { recursive: true });
+        for (const name of essentialFiles) {
+          const src = path.join(currentPath, name);
+          const dest = path.join(defaultPath, name);
+          try { await fs.copyFile(src, dest); } catch (_) {}
+        }
+        for (const name of essentialDirs) {
+          const src = path.join(currentPath, name);
+          const dest = path.join(defaultPath, name);
+          try {
+            const stat = await fs.stat(src).catch(() => null);
+            if (stat && stat.isDirectory()) {
+              await copyDirRecursive(src, dest);
+            }
+          } catch (_) {}
+        }
+      }
+      writeStorageConfig({});
+      return { success: true, defaultPath };
     });
     ipcMain.handle('reader:save-storage', async (_event, data) => { await writeStorage(data); return true; });
     ipcMain.handle('reader:get-update-info', () => updateStatus);
