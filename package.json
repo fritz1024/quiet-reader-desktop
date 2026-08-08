@@ -8,10 +8,11 @@
     "prepare-assets": "node scripts/prepare-assets.cjs",
     "build:styles": "tailwindcss -c tailwind.config.cjs -i app/tailwind.input.css -o app/vendor/tailwind.css --minify",
     "prepare": "npm run prepare-assets && npm run build:styles",
-    "dev": "npm run prepare && electron . --dev",
-    "dev:quick": "electron . --dev",
+    "dev": "npm run prepare && node scripts/dev.cjs",
+    "dev:quick": "node scripts/dev.cjs",
+    "build:renderer": "vite build",
     "start": "npm run dev",
-    "package:win": "npm run prepare && electron-builder --win --x64 --publish never",
+    "package:win": "npm run prepare && vite build && electron-builder --win --x64 --publish never",
     "release:win": "npm run package:win"
   },
   "dependencies": {
@@ -26,7 +27,8 @@
   "devDependencies": {
     "electron": "^37.10.3",
     "electron-builder": "^26.0.12",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "vite": "^8.2.1"
   },
   "build": {
     "appId": "com.fritz.quietreader",
@@ -40,7 +42,7 @@
       }
     ],
     "files": [
-      "app/**/*",
+      "dist/**/*",
       "main.cjs",
       "preload.cjs",
       "package.json"

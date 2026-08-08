@@ -1,9 +1,18 @@
 // Split from index.html — maintain in separate files under js/
-function getEditableChapterBody() {
+import { state, $, readerContainer, readerContent, readerDialog, readerDialogTitle, readerDialogMessage, dialogKeepEditingBtn, dialogDiscardBtn, dialogSaveBtn, pendingReaderDialogResolve, setPendingReaderDialogResolve, closeRequestInProgress, setCloseRequestInProgress, desktopApi, isDesktop } from './state.js';
+import { getChapterSourceKey, saveChapterEdits, canSaveChapterToSource, getChapterSourceDocumentKey, saveChapterToSource, getSourceSaveNotice } from './chapter.js';
+import { sanitizeEpubHtml, getChapterBodyContent } from './parser.js';
+import { renderChapter, renderChapterList } from './chapter-render.js';
+import { getSourceBackupRequest, reloadSource } from './folder-io.js';
+import { showToast } from './loader.js';
+import { renderMarks, refreshSearchIndex } from './search.js';
+import { saveLibrarySnapshot } from './storage.js';
+
+export function getEditableChapterBody() {
   return readerContent.querySelector('.chapter-body');
 }
 
-function updateEditorButton() {
+export function updateEditorButton() {
   const button = $('editorBtn');
   const label = button.querySelector('span');
   const icon = button.querySelector('i');
@@ -16,7 +25,7 @@ function updateEditorButton() {
     : 'fa-solid fa-pen-to-square text-[12px]';
 }
 
-function getViewportTopAnchorText(body) {
+export function getViewportTopAnchorText(body) {
   if (!body) return '';
   const containerTop = readerContainer.getBoundingClientRect().top;
   const walker = document.createTreeWalker(body, NodeFilter.SHOW_ELEMENT);
@@ -32,7 +41,7 @@ function getViewportTopAnchorText(body) {
   return '';
 }
 
-function scrollRawMarkdownToAnchor(body, anchorText) {
+export function scrollRawMarkdownToAnchor(body, anchorText) {
   if (!anchorText) return false;
   const raw = body.textContent || '';
   const needle = anchorText.replace(/\s+/g, ' ');
@@ -64,7 +73,7 @@ function scrollRawMarkdownToAnchor(body, anchorText) {
   }
 }
 
-function setDirectEditing(enabled) {
+export function setDirectEditing(enabled) {
   const body = getEditableChapterBody();
   if (!body) return;
   const chapter = state.chapters[state.currentChapter];
@@ -105,7 +114,7 @@ function setDirectEditing(enabled) {
   }
 }
 
-function getDirectEditContent() {
+export function getDirectEditContent() {
   const body = getEditableChapterBody();
   const chapter = state.chapters[state.currentChapter];
   if (!body) return '';
@@ -113,23 +122,23 @@ function getDirectEditContent() {
   return chapter?.isMarkdown ? text.replace(/\s+$/, '') : text.trim();
 }
 
-function getDirectEditSnapshot() {
+export function getDirectEditSnapshot() {
   const chapter = state.chapters[state.currentChapter];
   const body = getEditableChapterBody();
   if (!body) return '';
   return chapter?.isEpubHtml ? body.innerHTML : getDirectEditContent();
 }
 
-function closeReaderDialog(result = 'keep') {
+export function closeReaderDialog(result = 'keep') {
   if (!pendingReaderDialogResolve) return;
   const resolve = pendingReaderDialogResolve;
-  pendingReaderDialogResolve = null;
+  setPendingReaderDialogResolve(null);
   readerDialog.classList.remove('show');
   readerDialog.setAttribute('aria-hidden', 'true');
   resolve(result);
 }
 
-function askUnsavedAction(context = 'exit') {
+export function askUnsavedAction(context = 'exit') {
   const isExit = context === 'exit';
   readerDialogTitle.textContent = '正文有未保存的修改';
   readerDialogMessage.textContent = isExit
@@ -143,10 +152,10 @@ function askUnsavedAction(context = 'exit') {
   readerDialog.classList.add('show');
   readerDialog.setAttribute('aria-hidden', 'false');
   dialogSaveBtn.focus();
-  return new Promise(resolve => { pendingReaderDialogResolve = resolve; });
+  return new Promise(resolve => { setPendingReaderDialogResolve(resolve); });
 }
 
-function askSourceBackupRestore() {
+export function askSourceBackupRestore() {
   readerDialogTitle.textContent = '恢复原文件备份';
   readerDialogMessage.textContent = '将用选中的备份覆盖当前原文件。恢复前，当前版本会先自动备份。';
   dialogKeepEditingBtn.hidden = false;
@@ -156,10 +165,10 @@ function askSourceBackupRestore() {
   readerDialog.classList.add('show');
   readerDialog.setAttribute('aria-hidden', 'false');
   dialogSaveBtn.focus();
-  return new Promise(resolve => { pendingReaderDialogResolve = resolve; });
+  return new Promise(resolve => { setPendingReaderDialogResolve(resolve); });
 }
 
-function askAppDataImport() {
+export function askAppDataImport() {
   readerDialogTitle.textContent = '导入应用数据';
   readerDialogMessage.textContent = '导入后会覆盖当前阅读设置、阅读历史、本地编辑内容和原文件备份。';
   dialogKeepEditingBtn.hidden = true;
@@ -169,10 +178,10 @@ function askAppDataImport() {
   readerDialog.classList.add('show');
   readerDialog.setAttribute('aria-hidden', 'false');
   dialogSaveBtn.focus();
-  return new Promise(resolve => { pendingReaderDialogResolve = resolve; });
+  return new Promise(resolve => { setPendingReaderDialogResolve(resolve); });
 }
 
-async function restoreSourceBackup(backup) {
+export async function restoreSourceBackup(backup) {
   const request = getSourceBackupRequest();
   if (!request || !desktopApi?.restoreSourceBackup) { showToast('当前内容无法恢复原文件备份'); return; }
   if (hasUnsavedDirectEdit()) {
@@ -195,26 +204,26 @@ async function restoreSourceBackup(backup) {
   }
 }
 
-function hasUnsavedDirectEdit() {
+export function hasUnsavedDirectEdit() {
   return state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText;
 }
 
-async function handleCloseRequest() {
+export async function handleCloseRequest() {
   if (closeRequestInProgress || pendingReaderDialogResolve) return true;
   if (!hasUnsavedDirectEdit()) {
-    closeRequestInProgress = true;
+    setCloseRequestInProgress(true);
     desktopApi?.confirmClose?.();
     return true;
   }
   const action = await askUnsavedAction('exit');
   if (action === 'keep') return true;
   if (action === 'save' && !(await saveDirectEdit(false))) return true;
-  closeRequestInProgress = true;
+  setCloseRequestInProgress(true);
   desktopApi?.confirmClose?.();
   return true;
 }
 
-async function saveDirectEdit(showMessage = true) {
+export async function saveDirectEdit(showMessage = true) {
   const chapter = state.chapters[state.currentChapter];
   if (!chapter) return false;
   const content = getDirectEditContent();
@@ -249,7 +258,7 @@ async function saveDirectEdit(showMessage = true) {
   return true;
 }
 
-async function saveAndExitDirectEditing() {
+export async function saveAndExitDirectEditing() {
   if (!state.directEditing || !(await saveDirectEdit(false))) return false;
   const currentScroll = readerContainer.scrollTop;
   setDirectEditing(false);
@@ -259,7 +268,7 @@ async function saveAndExitDirectEditing() {
   return true;
 }
 
-async function exitDirectEditing() {
+export async function exitDirectEditing() {
   if (!state.directEditing) return true;
   const currentSnapshot = getDirectEditSnapshot();
   const hasChanges = currentSnapshot !== state.directEditOriginalText;
@@ -277,11 +286,11 @@ async function exitDirectEditing() {
   return true;
 }
 
-function updateEditorResult(message) {
+export function updateEditorResult(message) {
   $('editorResult').textContent = message;
 }
 
-function getCurrentFileChapters() {
+export function getCurrentFileChapters() {
   const current = state.chapters[state.currentChapter];
   if (!current) return [];
   if (current.isEpubHtml) return [current];
@@ -290,7 +299,7 @@ function getCurrentFileChapters() {
   return state.chapters.filter(chapter => !chapter.isEpubHtml && getChapterSourceDocumentKey(chapter) === key);
 }
 
-function getCurrentFileLabel() {
+export function getCurrentFileLabel() {
   const current = state.chapters[state.currentChapter];
   const path = current?.sourceDocumentKey || current?.filename || '';
   return String(path).split('/').pop() || current?.title || '当前文件';

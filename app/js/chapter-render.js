@@ -1,7 +1,22 @@
 // Split from index.html — maintain in separate files under js/
-let sidebarCollapsedGroups = {};
+import { state, $, chapterList, chapterCount, readerContent, readerContainer, progressFill } from './state.js';
+import { escapeHtml, formatNumber } from './storage.js';
+import { getWordCount, getBookWordCount } from './text-utils.js';
+import { renderMarkdown } from './markdown.js';
+import { renderPdfViewer } from './pdf-viewer.js';
+import { renderEpubViewer } from './epub-viewer.js';
+import { getChapterGroupInfo, updateNavButtonLabels, updateNavButtonStates } from './chapter-nav.js';
+import { getEditableChapterBody } from './editing.js';
+import { getSourceBackupRequest, syncMobileMoreActions } from './folder-io.js';
+import { applyReadingSettings, saveProgress, toggleSidebar, selectChapter } from './loader.js';
+import { getChapterBodyContent } from './parser.js';
+import { applyTextMarks, refreshSearchIndex } from './search.js';
 
-function renderChapterList() {
+export let sidebarCollapsedGroups = {};
+
+export function setSidebarCollapsedGroups(val) { sidebarCollapsedGroups = val; }
+
+export function renderChapterList() {
   chapterList.innerHTML = '';
   $('sidebarBookName').textContent = state.bookTitle || '未命名书籍';
   $('emptyChapterList').classList.toggle('hidden', state.chapters.length > 0);
@@ -99,7 +114,7 @@ function renderChapterList() {
   }
 }
 
-function renderChapter(index, { saveProgress: shouldSaveProgress = true, refreshChapterSearch = true } = {}) {
+export function renderChapter(index, { saveProgress: shouldSaveProgress = true, refreshChapterSearch = true } = {}) {
   const chapter = state.chapters[index]; if (!chapter) return;
   state.currentChapter = index;
   if (refreshChapterSearch && state.search.scope === 'chapter' && state.search.query) refreshSearchIndex();

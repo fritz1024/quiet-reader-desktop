@@ -1,5 +1,7 @@
 // Split from index.html — maintain in separate files under js/
-function renderMarkdownInline(text) {
+import { escapeHtml } from './storage.js';
+
+export function renderMarkdownInline(text) {
   const protectedTokens = [];
   const protect = (html) => { const token = `@@TOKEN_${protectedTokens.length}@@`; protectedTokens.push(html); return token; };
   let html = escapeHtml(text);
@@ -12,7 +14,7 @@ function renderMarkdownInline(text) {
   return html.replace(/@@TOKEN_(\d+)@@/g, (_, index) => protectedTokens[Number(index)]);
 }
 
-function renderMarkdown(content) {
+export function renderMarkdown(content) {
   const lines = content.replace(/\r/g, '').split('\n');
   const output = []; let paragraph = []; let quote = []; let list = []; let listType = ''; let code = []; let inCode = false;
   const flushParagraph = () => { if (paragraph.length) { output.push(`<p>${renderMarkdownInline(paragraph.join(' ').trim())}</p>`); paragraph = []; } };

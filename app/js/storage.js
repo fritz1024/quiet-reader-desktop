@@ -1,25 +1,30 @@
 // Split from index.html — maintain in separate files under js/
-function getStoredJson(key, fallback = null) {
+import { isDesktop, desktopApi, desktopStorage, desktopStorageWrite, setDesktopStorageWrite, desktopStorageTimer, setDesktopStorageTimer, state, textFilePattern, bookFilePattern, pdfFilePattern, folderDatabaseName, folderStoreName, folderDatabasePromise, setFolderDatabasePromise, historyStorageKey, historyLimit } from './state.js';
+import { showToast } from './loader.js';
+import { getBookWordCount } from './text-utils.js';
+import { saveReadingHistory } from './history.js';
+
+export function getStoredJson(key, fallback = null) {
   if (isDesktop) return Object.prototype.hasOwnProperty.call(desktopStorage, key) ? desktopStorage[key] : fallback;
   try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch (_) { return fallback; }
 }
 
-function persistDesktopStorage() {
+export function persistDesktopStorage() {
   if (!isDesktop) return Promise.resolve();
-  desktopStorageWrite = desktopStorageWrite.catch(() => undefined).then(() => desktopApi.saveStorage(desktopStorage));
+  setDesktopStorageWrite(desktopStorageWrite.catch(() => undefined).then(() => desktopApi.saveStorage(desktopStorage)));
   return desktopStorageWrite.catch(error => {
     console.error(error);
     showToast('本地保存失败，请检查磁盘空间');
   });
 }
 
-function scheduleDesktopStorageSave() {
+export function scheduleDesktopStorageSave() {
   if (!isDesktop) return;
   clearTimeout(desktopStorageTimer);
-  desktopStorageTimer = setTimeout(() => { persistDesktopStorage(); }, 350);
+  setDesktopStorageTimer(setTimeout(() => { persistDesktopStorage(); }, 350));
 }
 
-function setStoredJson(key, value, { immediate = false } = {}) {
+export function setStoredJson(key, value, { immediate = false } = {}) {
   if (isDesktop) {
     desktopStorage[key] = value;
     return immediate ? persistDesktopStorage() : (scheduleDesktopStorageSave(), Promise.resolve());
@@ -28,27 +33,27 @@ function setStoredJson(key, value, { immediate = false } = {}) {
   return Promise.resolve();
 }
 
-function escapeHtml(text) {
+export function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = String(text ?? '');
   return div.innerHTML;
 }
 
-function formatNumber(num) { return Number(num || 0).toLocaleString('zh-CN'); }
-function isSupportedFile(file) { return textFilePattern.test(file.name); }
-function isBookFile(file) { return bookFilePattern.test(file.name); }
-function isPdfFile(file) { return pdfFilePattern.test(typeof file === 'string' ? file : file.name); }
-function isMarkdownFile(file) {
+export function formatNumber(num) { return Number(num || 0).toLocaleString('zh-CN'); }
+export function isSupportedFile(file) { return textFilePattern.test(file.name); }
+export function isBookFile(file) { return bookFilePattern.test(file.name); }
+export function isPdfFile(file) { return pdfFilePattern.test(typeof file === 'string' ? file : file.name); }
+export function isMarkdownFile(file) {
   const name = typeof file === 'string' ? file : file?.name;
   return /\.(md|markdown)$/i.test(String(name || ''));
 }
-function getFilenameWithoutExtension(filename) { return filename.replace(/\.(txt|md|markdown|epub|zip|pdf)$/i, ''); }
+export function getFilenameWithoutExtension(filename) { return filename.replace(/\.(txt|md|markdown|epub|zip|pdf)$/i, ''); }
 
-function openFolderDatabase() {
+export function openFolderDatabase() {
   if (isDesktop) return Promise.resolve(null);
   if (!('indexedDB' in window)) return Promise.resolve(null);
   if (!folderDatabasePromise) {
-    folderDatabasePromise = new Promise((resolve) => {
+    setFolderDatabasePromise(new Promise((resolve) => {
       try {
         const request = indexedDB.open(folderDatabaseName, 1);
         request.onupgradeneeded = () => request.result.createObjectStore(folderStoreName, { keyPath: 'id' });
@@ -57,12 +62,12 @@ function openFolderDatabase() {
       } catch (_) {
         resolve(null);
       }
-    });
+    }));
   }
   return folderDatabasePromise;
 }
 
-async function saveFolderHandle(handle) {
+export async function saveFolderHandle(handle) {
   if (isDesktop) return;
   const database = await openFolderDatabase();
   if (!database || !handle) return;
@@ -75,7 +80,7 @@ async function saveFolderHandle(handle) {
   });
 }
 
-async function getSavedFolder() {
+export async function getSavedFolder() {
   if (isDesktop) return null;
   const database = await openFolderDatabase();
   if (!database) return null;
@@ -86,7 +91,7 @@ async function getSavedFolder() {
   });
 }
 
-async function saveLibrarySnapshot() {
+export async function saveLibrarySnapshot() {
   if (!state.chapters.length || state.demo) return;
   const sourceBacked = isDesktop && Boolean(state.sourcePath) && state.sourceAvailable;
   const snapshot = {
@@ -141,7 +146,7 @@ async function saveLibrarySnapshot() {
   await saveReadingHistory(snapshot);
 }
 
-async function getSavedLibrary() {
+export async function getSavedLibrary() {
   if (isDesktop) return getStoredJson('reader_last_library');
   const database = await openFolderDatabase();
   if (database) {
@@ -155,7 +160,7 @@ async function getSavedLibrary() {
   try { return JSON.parse(localStorage.getItem('reader_last_library') || 'null'); } catch (_) { return null; }
 }
 
-function hashLibrarySignature(value) {
+export function hashLibrarySignature(value) {
   let hash = 2166136261;
   const text = String(value || '');
   for (let index = 0; index < text.length; index += 1) {
@@ -165,7 +170,7 @@ function hashLibrarySignature(value) {
   return (hash >>> 0).toString(36);
 }
 
-function createLibraryIdentity({ sourcePath = '', sourceType = '', bookTitle = '', chapters = [] } = {}) {
+export function createLibraryIdentity({ sourcePath = '', sourceType = '', bookTitle = '', chapters = [] } = {}) {
   const normalizedPath = String(sourcePath).trim();
   if (normalizedPath) return `${sourceType || 'book'}:${normalizedPath.toLowerCase()}`;
   const chapterSignature = (Array.isArray(chapters) ? chapters : [])
@@ -174,7 +179,7 @@ function createLibraryIdentity({ sourcePath = '', sourceType = '', bookTitle = '
   return `local:${bookTitle || 'untitled'}:${hashLibrarySignature(chapterSignature || bookTitle || 'untitled')}`;
 }
 
-function getHistoryIdentity(snapshot) {
+export function getHistoryIdentity(snapshot) {
   const savedIdentity = String(snapshot?.libraryIdentity || '').trim();
   if (savedIdentity) return savedIdentity;
   const sourcePath = String(snapshot?.sourcePath || '').trim();
@@ -183,29 +188,29 @@ function getHistoryIdentity(snapshot) {
   return `local:${snapshot?.bookTitle || 'untitled'}:${firstChapter?.filename || firstChapter?.title || ''}`;
 }
 
-function getProgressStorageKey(snapshot = state) {
+export function getProgressStorageKey(snapshot = state) {
   return `reader_progress_${getHistoryIdentity(snapshot)}`;
 }
 
-function getLegacyProgressStorageKey(bookTitle = state.bookTitle) {
+export function getLegacyProgressStorageKey(bookTitle = state.bookTitle) {
   return `reader_${bookTitle || 'untitled'}`;
 }
 
-function getSavedProgress(snapshot = state) {
+export function getSavedProgress(snapshot = state) {
   const saved = getStoredJson(getProgressStorageKey(snapshot), null);
   if (saved) return saved;
   return snapshot?.libraryIdentity ? null : getStoredJson(getLegacyProgressStorageKey(snapshot?.bookTitle), null);
 }
 
-function getChapterEditsStorageKey(snapshot = state) {
+export function getChapterEditsStorageKey(snapshot = state) {
   return `reader_edits_${getHistoryIdentity(snapshot)}`;
 }
 
-function getMarksStorageKey(snapshot = state) {
+export function getMarksStorageKey(snapshot = state) {
   return `reader_marks_${getHistoryIdentity(snapshot)}`;
 }
 
-function loadMarks(snapshot = state) {
+export function loadMarks(snapshot = state) {
   const saved = getStoredJson(getMarksStorageKey(snapshot), []);
   if (!Array.isArray(saved)) return [];
   return saved
@@ -225,6 +230,6 @@ function loadMarks(snapshot = state) {
     .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
 }
 
-function saveMarks() {
+export function saveMarks() {
   return setStoredJson(getMarksStorageKey(), state.marks, { immediate: true });
 }

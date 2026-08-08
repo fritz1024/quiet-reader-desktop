@@ -1,5 +1,9 @@
 // Split from index.html — maintain in separate files under js/
-function normalizeFileItems(files, pattern = textFilePattern) {
+import { state, $, textFilePattern, classifyFileCategory } from './state.js';
+import { escapeHtml } from './storage.js';
+import { saveSettings } from './loader.js';
+
+export function normalizeFileItems(files, pattern = textFilePattern) {
   return Array.from(files)
     .filter(file => pattern.test(file.name))
     .map(file => {
@@ -9,16 +13,16 @@ function normalizeFileItems(files, pattern = textFilePattern) {
     .sort((a, b) => naturalCompare(a.relativePath, b.relativePath));
 }
 
-function naturalCompare(a, b) {
+export function naturalCompare(a, b) {
   return a.localeCompare(b, 'zh-CN', { numeric: true, sensitivity: 'base' });
 }
 
-function getWordCount(text, isMarkdown = false) {
+export function getWordCount(text, isMarkdown = false) {
   const readable = isMarkdown ? markdownToPlainText(String(text || '')) : String(text || '');
   return readable.trim().replace(/\s+/g, '').length;
 }
 
-function getBookWordCount() {
+export function getBookWordCount() {
   return state.chapters
     .filter(chapter => !chapter.isCover && chapter.category !== 'reference' && !chapter.isPdf && !chapter.isEpubFile)
     .reduce((total, chapter) => {
@@ -30,7 +34,7 @@ function getBookWordCount() {
     }, 0);
 }
 
-function markdownToPlainText(text) {
+export function markdownToPlainText(text) {
   return String(text || '')
     .replace(/!?(\[[^\]]*\])\([^)]*\)/g, '$1')
     .replace(/^[ \t]*#{1,6}\s+/gm, '')
@@ -41,14 +45,14 @@ function markdownToPlainText(text) {
     .trim();
 }
 
-function isInsideUrl(text, index) {
+export function isInsideUrl(text, index) {
   let start = index - 1;
   while (start >= 0 && !/\s/.test(text[start])) start -= 1;
-  const token = text.slice(start + 1, index + 1).replace(/^[([<{"“‘]+/, '');
+  const token = text.slice(start + 1, index + 1).replace(/^[([<{"\u201c\u2018]+/, '');
   return /^(?:(?:https?|ftp):\/{0,2}|www\.)/i.test(token);
 }
 
-function normalizePunctuation(text, options) {
+export function normalizePunctuation(text, options) {
   const source = String(text || '');
   let result = '';
   let changes = 0;
@@ -62,7 +66,7 @@ function normalizePunctuation(text, options) {
     if (inCode || isInsideUrl(source, index)) { result += character; continue; }
 
     if (character === '"' && options.quotes) {
-      result += doubleQuoteOpen ? '“' : '”';
+      result += doubleQuoteOpen ? '"' : '"';
       doubleQuoteOpen = !doubleQuoteOpen;
       changes += 1;
     } else if (character === "'" && options.quotes) {
@@ -90,7 +94,7 @@ function normalizePunctuation(text, options) {
   return { text: result, changes };
 }
 
-function getPunctuationOptions() {
+export function getPunctuationOptions() {
   return {
     quotes: $('replaceQuotes').checked,
     commas: $('replaceCommas').checked,
@@ -101,7 +105,7 @@ function getPunctuationOptions() {
   };
 }
 
-function setPunctuationOptions(options) {
+export function setPunctuationOptions(options) {
   if (!options) return;
   $('replaceQuotes').checked = Boolean(options.quotes);
   $('replaceCommas').checked = Boolean(options.commas);
@@ -111,11 +115,11 @@ function setPunctuationOptions(options) {
   $('replaceEllipses').checked = Boolean(options.ellipses);
 }
 
-function getCustomRules() {
+export function getCustomRules() {
   return Array.isArray(state.customReplaceRules) ? state.customReplaceRules : [];
 }
 
-function renderCustomRules() {
+export function renderCustomRules() {
   const list = $('customRulesList');
   if (!list) return;
   const rules = getCustomRules();
@@ -136,7 +140,7 @@ function renderCustomRules() {
   }).join("");
 }
 
-function addCustomRule(from, to) {
+export function addCustomRule(from, to) {
   if (!from || from === to) return false;
   const rules = getCustomRules();
   if (rules.some(r => r.from === from)) return false;
@@ -147,7 +151,7 @@ function addCustomRule(from, to) {
   return true;
 }
 
-function removeCustomRule(index) {
+export function removeCustomRule(index) {
   const rules = getCustomRules();
   if (index < 0 || index >= rules.length) return;
   rules.splice(index, 1);
@@ -156,7 +160,7 @@ function removeCustomRule(index) {
   renderCustomRules();
 }
 
-function toggleCustomRule(index) {
+export function toggleCustomRule(index) {
   const rules = getCustomRules();
   if (index < 0 || index >= rules.length) return;
   rules[index].enabled = rules[index].enabled === false ? true : false;
@@ -164,7 +168,7 @@ function toggleCustomRule(index) {
   saveSettings();
 }
 
-function applyCustomRules(text) {
+export function applyCustomRules(text) {
   const rules = getCustomRules();
   if (!rules.length) return { text, changes: 0 };
   let result = text;

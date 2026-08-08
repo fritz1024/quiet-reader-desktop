@@ -1,5 +1,10 @@
+/* global JSZip */
 // Split from index.html — maintain in separate files under js/
-function readBinaryFile(file) {
+import { state, isDesktop, desktopApi, textFilePattern, maxBookFileBytes, maxTextFileBytes, maxZipEntries, maxZipUncompressedBytes, maxEmbeddedImageBytes, classifyFileCategory } from './state.js';
+import { formatNumber, isMarkdownFile, getFilenameWithoutExtension } from './storage.js';
+import { markdownToPlainText, normalizePunctuation, naturalCompare } from './text-utils.js';
+
+export function readBinaryFile(file) {
   if (file && typeof file.arrayBuffer === 'function') return file.arrayBuffer();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -9,21 +14,21 @@ function readBinaryFile(file) {
   });
 }
 
-function assertFileSize(file, maximumBytes, label) {
+export function assertFileSize(file, maximumBytes, label) {
   const size = Number(file?.size || 0);
   if (size > maximumBytes) {
     throw new Error(`${label}超过 ${formatNumber(Math.round(maximumBytes / 1024 / 1024))} MB 的安全导入上限`);
   }
 }
 
-function isPlausibleTextContent(content) {
+export function isPlausibleTextContent(content) {
   const visible = Array.from(String(content || '')).filter(character => !/\s/u.test(character));
   if (visible.length < 2) return true;
   const suspicious = visible.filter(character => /[\uE000-\uF8FF\uFB00-\uFDFF\uFE70-\uFEFF\uFFF0-\uFFFF]/u.test(character));
   return suspicious.length / visible.length < 0.8;
 }
 
-function decodeTextBuffer(buffer) {
+export function decodeTextBuffer(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   const startsWith = (first, second) => bytes.length >= 2 && bytes[0] === first && bytes[1] === second;
   if (startsWith(0xFF, 0xFE)) {
@@ -55,16 +60,16 @@ function decodeTextBuffer(buffer) {
   }
 }
 
-async function readFile(file) {
+export async function readFile(file) {
   assertFileSize(file, maxTextFileBytes, '文本文件');
   return decodeTextBuffer(await readBinaryFile(file));
 }
 
-function isReasonablePlainChapterTitle(title) {
+export function isReasonablePlainChapterTitle(title) {
   return String(title || '').trim().length <= 80;
 }
 
-function parseInternalChapters(content, filename) {
+export function parseInternalChapters(content, filename) {
   const pattern = /^\s*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇].*|Chapter\s+\d+.*))\s*$/gim;
   const matches = [];
   let match;
@@ -90,12 +95,12 @@ function parseInternalChapters(content, filename) {
   });
 }
 
-function matchLineLength(text, index) {
+export function matchLineLength(text, index) {
   const end = text.indexOf('\n', index);
   return end === -1 ? text.length - index : end - index + 1;
 }
 
-function parseMarkdownChapters(content, filename) {
+export function parseMarkdownChapters(content, filename) {
   const matches = [];
   const pattern = /^#\s+(.+?)\s*#*\s*$/gm;
   let match;
@@ -115,21 +120,21 @@ function parseMarkdownChapters(content, filename) {
   });
 }
 
-function extractLeadingPlainChapter(content) {
+export function extractLeadingPlainChapter(content) {
   const source = String(content || '').replace(/^\uFEFF/, '');
   const match = source.match(/^[ \t\r\n]*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇][^\r\n]*|Chapter\s+\d+[^\r\n]*))[ \t]*(?:\r?\n|$)/i);
   if (!match || !isReasonablePlainChapterTitle(match[1])) return null;
   return { title: match[1].trim(), content: source.slice(match[0].length).trimStart() };
 }
 
-function extractLeadingMarkdownChapter(content) {
+export function extractLeadingMarkdownChapter(content) {
   const source = String(content || '').replace(/^\uFEFF/, '');
   const match = source.match(/^[ \t\r\n]*#\s+(.+?)\s*#?[ \t]*(?:\r?\n|$)/);
   if (!match) return null;
   return { title: markdownToPlainText(match[1]), content: source.slice(match[0].length).trimStart() };
 }
 
-function inferChapterTypes(chapters) {
+export function inferChapterTypes(chapters) {
   return (chapters || []).map(chapter => ({
     ...chapter,
     isMarkdown: chapter.isPdf ? false : Boolean(chapter.isMarkdown || isMarkdownFile(chapter.filename)),
@@ -138,12 +143,12 @@ function inferChapterTypes(chapters) {
   }));
 }
 
-function getMarkdownTitle(content) {
+export function getMarkdownTitle(content) {
   const match = content.match(/^\s*#\s+(.+?)\s*#*\s*$/m);
   return match ? markdownToPlainText(match[1]) : '';
 }
 
-function chaptersFromTextContent(content, filename, relativePath = filename, category = 'content') {
+export function chaptersFromTextContent(content, filename, relativePath = filename, category = 'content') {
   const displayFilename = String(filename || relativePath || '本地文件').split('/').pop();
   const isMarkdown = isMarkdownFile(displayFilename);
   const internal = isMarkdown ? parseMarkdownChapters(content, displayFilename) : parseInternalChapters(content, displayFilename);
@@ -172,7 +177,7 @@ function chaptersFromTextContent(content, filename, relativePath = filename, cat
   }];
 }
 
-function normalizeZipPath(basePath, target) {
+export function normalizeZipPath(basePath, target) {
   let value = String(target || '').split(/[?#]/)[0].replace(/\\/g, '/');
   try { value = decodeURIComponent(value); } catch (_) { /* keep the original path */ }
   const combined = `${basePath ? `${basePath}/` : ''}${value}`.replace(/^\/+/, '');
@@ -185,7 +190,7 @@ function normalizeZipPath(basePath, target) {
   return parts.join('/');
 }
 
-function getZipEntry(zip, path) {
+export function getZipEntry(zip, path) {
   const normalized = normalizeZipPath('', path);
   const exact = zip.file(normalized);
   if (exact) return exact;
@@ -193,24 +198,24 @@ function getZipEntry(zip, path) {
   return match || null;
 }
 
-function getZipEntryUncompressedSize(entry) {
+export function getZipEntryUncompressedSize(entry) {
   const size = Number(entry?._data?.uncompressedSize);
   return Number.isFinite(size) && size > 0 ? size : 0;
 }
 
-function getImportDiagnosticReason(error, fallback = '文件无法读取') {
+export function getImportDiagnosticReason(error, fallback = '文件无法读取') {
   const message = String(error?.message || '').replace(/[\r\n]+/g, ' ').trim();
   return message || fallback;
 }
 
-function formatImportDiagnostics(diagnostics) {
+export function formatImportDiagnostics(diagnostics) {
   const items = (diagnostics || []).filter(item => item?.path);
   if (!items.length) return '';
   const details = items.slice(0, 3).map(item => `${item.path}（${item.reason || '无法读取'}）`).join('、');
   return `跳过 ${items.length} 个无法解析的内部文件：${details}${items.length > 3 ? ' 等' : ''}`;
 }
 
-async function loadZipWithLimits(buffer) {
+export async function loadZipWithLimits(buffer) {
   const byteLength = Number(buffer?.byteLength || buffer?.length || 0);
   if (byteLength > maxBookFileBytes) throw new Error(`压缩包超过 ${formatNumber(Math.round(maxBookFileBytes / 1024 / 1024))} MB 的安全导入上限`);
   let zip;
@@ -228,17 +233,17 @@ async function loadZipWithLimits(buffer) {
   return { zip, entries };
 }
 
-function getXmlTextByLocalName(xml, localName) {
+export function getXmlTextByLocalName(xml, localName) {
   const node = Array.from(xml.getElementsByTagName('*')).find(item => item.localName === localName || item.nodeName === localName);
   return node ? node.textContent.trim() : '';
 }
 
-function getEpubHtmlText(html) {
+export function getEpubHtmlText(html) {
   const documentNode = new DOMParser().parseFromString(String(html || ''), 'text/html');
   return (documentNode.body?.innerText || documentNode.body?.textContent || '').replace(/^\uFEFF/, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-function sanitizeEpubHtml(html) {
+export function sanitizeEpubHtml(html) {
   const documentNode = new DOMParser().parseFromString(String(html || ''), 'text/html');
   const body = documentNode.body || documentNode.documentElement;
   body.querySelectorAll('script,style,link,meta,base,title,noscript,template,svg,math,iframe,frame,frameset,object,embed,applet,form,input,button,textarea,select,option,audio,video,source,track,canvas').forEach(node => node.remove());
@@ -260,7 +265,7 @@ function sanitizeEpubHtml(html) {
   return body.innerHTML.trim();
 }
 
-function normalizeHtmlPunctuation(html, options) {
+export function normalizeHtmlPunctuation(html, options) {
   const documentNode = new DOMParser().parseFromString(sanitizeEpubHtml(html), 'text/html');
   const walker = documentNode.createTreeWalker(documentNode.body, NodeFilter.SHOW_TEXT);
   let changes = 0;
@@ -274,7 +279,7 @@ function normalizeHtmlPunctuation(html, options) {
   return { html: documentNode.body.innerHTML, changes };
 }
 
-function getEpubAssetMimeType(path) {
+export function getEpubAssetMimeType(path) {
   const extension = String(path || '').split('.').pop().toLowerCase();
   return {
     jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
@@ -282,7 +287,7 @@ function getEpubAssetMimeType(path) {
   }[extension] || 'application/octet-stream';
 }
 
-async function getEpubAssetDataUrl(zip, path, mediaType = '') {
+export async function getEpubAssetDataUrl(zip, path, mediaType = '') {
   const entry = getZipEntry(zip, path);
   if (!entry) return '';
   const mimeType = mediaType || getEpubAssetMimeType(path);
@@ -291,7 +296,7 @@ async function getEpubAssetDataUrl(zip, path, mediaType = '') {
   return `data:${mimeType};base64,${await entry.async('base64')}`;
 }
 
-async function embedEpubImages(body, htmlPath, zip, manifestByPath) {
+export async function embedEpubImages(body, htmlPath, zip, manifestByPath) {
   const basePath = htmlPath.includes('/') ? htmlPath.slice(0, htmlPath.lastIndexOf('/')) : '';
   const images = Array.from(body.querySelectorAll('img[src]'));
   for (const image of images) {
@@ -309,7 +314,7 @@ async function embedEpubImages(body, htmlPath, zip, manifestByPath) {
   }
 }
 
-async function chapterFromEpubHtmlDocument(html, htmlPath, sourceName, zip, manifestByPath, options = {}) {
+export async function chapterFromEpubHtmlDocument(html, htmlPath, sourceName, zip, manifestByPath, options = {}) {
   const documentNode = new DOMParser().parseFromString(String(html || ''), 'text/html');
   const body = documentNode.body || documentNode.documentElement;
   const heading = body.querySelector('h1,h2,h3,h4');
@@ -331,7 +336,7 @@ async function chapterFromEpubHtmlDocument(html, htmlPath, sourceName, zip, mani
   };
 }
 
-async function parseEpubBuffer(buffer, sourceName = 'book.epub') {
+export async function parseEpubBuffer(buffer, sourceName = 'book.epub') {
   if (typeof JSZip === 'undefined') throw new Error('EPUB/ZIP解析库未加载');
   const { zip } = await loadZipWithLimits(buffer);
   const containerEntry = getZipEntry(zip, 'META-INF/container.xml');
@@ -423,11 +428,11 @@ async function parseEpubBuffer(buffer, sourceName = 'book.epub') {
   return { title: getXmlTextByLocalName(opfXml, 'title') || fallbackTitle, chapters, diagnostics };
 }
 
-async function parseEpubFile(file) {
+export async function parseEpubFile(file) {
   return parseEpubBuffer(await readBinaryFile(file), file.name);
 }
 
-async function parseZipFile(file) {
+export async function parseZipFile(file) {
   if (typeof JSZip === 'undefined') throw new Error('EPUB/ZIP解析库未加载');
   const { zip, entries } = await loadZipWithLimits(await readBinaryFile(file));
   const nestedEpub = entries.find(entry => /\.epub$/i.test(entry.name));
@@ -456,7 +461,7 @@ async function parseZipFile(file) {
   return { title: getFilenameWithoutExtension(file.name), chapters, diagnostics: failedEntries };
 }
 
-async function parseBookFile(file, relativePath = file.name) {
+export async function parseBookFile(file, relativePath = file.name) {
   const extension = (file.name.match(/\.([^.]+)$/)?.[1] || '').toLowerCase();
   if (extension !== 'pdf') assertFileSize(file, ['epub', 'zip'].includes(extension) ? maxBookFileBytes : maxTextFileBytes, ['epub', 'zip'].includes(extension) ? '书籍文件' : '文本文件');
   if (extension === 'pdf') {
@@ -499,7 +504,7 @@ if (extension === 'epub') {
   };
 }
 
-function getChapterBodyContent(chapter) {
+export function getChapterBodyContent(chapter) {
   if (chapter.isPdf || chapter.isEpubFile) return '';
   if (chapter.content === null) return '（正在加载…）';
   let content = (chapter.content || '').replace(/^\uFEFF/, '');

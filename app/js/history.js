@@ -1,23 +1,31 @@
 // Split from index.html — maintain in separate files under js/
-function getChapterKey(chapter) {
+import { state, isDesktop, desktopApi, $, readerContainer, historyStorageKey, historyLimit } from './state.js';
+import { getStoredJson, setStoredJson, escapeHtml, formatNumber, getSavedLibrary, getHistoryIdentity, getSavedProgress, getProgressStorageKey, createLibraryIdentity, loadMarks, saveLibrarySnapshot } from './storage.js';
+import { showToast } from './loader.js';
+import { getChapterBodyContent } from './parser.js';
+import { getWordCount, getBookWordCount } from './text-utils.js';
+import { loadFromDesktopFolder, loadDesktopBookPath } from './folder-io.js';
+import { renderChapter } from './chapter-render.js';
+
+export function getChapterKey(chapter) {
   return String(chapter?.sourceKey || `${chapter?.filename || ''}\u0000${chapter?.title || ''}`);
 }
 
-function getSnapshotWordCount(snapshot) {
+export function getSnapshotWordCount(snapshot) {
   if (Number.isFinite(Number(snapshot?.wordCount))) return Math.max(0, Number(snapshot.wordCount));
   return (snapshot?.chapters || [])
     .filter(chapter => !chapter?.isCover)
     .reduce((total, chapter) => total + getWordCount(getChapterBodyContent(chapter), chapter.isMarkdown), 0);
 }
 
-function hasRestorableSnapshotContent(snapshot) {
+export function hasRestorableSnapshotContent(snapshot) {
   return Array.isArray(snapshot?.chapters) && snapshot.chapters.some(chapter => (
     Object.prototype.hasOwnProperty.call(chapter || {}, 'content') ||
     Object.prototype.hasOwnProperty.call(chapter || {}, 'htmlContent')
   ));
 }
 
-function makeHistoryEntry(snapshot) {
+export function makeHistoryEntry(snapshot) {
   const chapterCount = Number.isFinite(Number(snapshot?.chapterCount))
     ? Math.max(0, Number(snapshot.chapterCount))
     : (Array.isArray(snapshot?.chapters) ? snapshot.chapters.length : 0);
@@ -38,7 +46,7 @@ function makeHistoryEntry(snapshot) {
   };
 }
 
-function normalizeHistory(rawHistory) {
+export function normalizeHistory(rawHistory) {
   if (!Array.isArray(rawHistory)) return [];
   const entries = rawHistory
     .filter(item => item && typeof item === 'object' && item.bookTitle)
@@ -53,7 +61,7 @@ function normalizeHistory(rawHistory) {
   return [...pinned, ...regular];
 }
 
-async function getReadingHistory() {
+export async function getReadingHistory() {
   const storedHistory = getStoredJson(historyStorageKey, null);
   if (Array.isArray(storedHistory)) return normalizeHistory(storedHistory);
   const snapshot = await getSavedLibrary();
@@ -63,7 +71,7 @@ async function getReadingHistory() {
   return migrated;
 }
 
-async function saveReadingHistory(snapshot) {
+export async function saveReadingHistory(snapshot) {
   const entry = makeHistoryEntry(snapshot);
   const history = await getReadingHistory();
   const previous = history.find(item => item.id === entry.id);
@@ -74,7 +82,7 @@ async function saveReadingHistory(snapshot) {
   if (document.body.classList.contains('home-mode')) renderReadingHistory();
 }
 
-async function deleteHistoryEntry(id) {
+export async function deleteHistoryEntry(id) {
   const history = normalizeHistory(getStoredJson(historyStorageKey, []));
   const next = history.filter(entry => entry.id !== id);
   await setStoredJson(historyStorageKey, next, { immediate: true });
@@ -82,7 +90,7 @@ async function deleteHistoryEntry(id) {
   showToast('已从阅读历史移除');
 }
 
-async function updateHistoryEntry(id, updater) {
+export async function updateHistoryEntry(id, updater) {
   const history = normalizeHistory(getStoredJson(historyStorageKey, []));
   const index = history.findIndex(entry => entry.id === id);
   if (index < 0) return null;
@@ -94,14 +102,14 @@ async function updateHistoryEntry(id, updater) {
   return next.find(entry => entry.id === nextEntry.id) || nextEntry;
 }
 
-async function toggleHistoryPinned(id) {
+export async function toggleHistoryPinned(id) {
   const entry = await updateHistoryEntry(id, value => ({ ...value, pinned: !value.pinned }));
   if (!entry) return;
   await renderReadingHistory();
   showToast(entry.pinned ? '已置顶这本书' : '已取消置顶');
 }
 
-function getHistoryProgress(entry) {
+export function getHistoryProgress(entry) {
   const saved = getSavedProgress(entry);
   const maxChapter = Math.max(0, Number(entry.chapterCount || 1) - 1);
   const chapter = Number.isInteger(saved?.chapter)
@@ -110,13 +118,13 @@ function getHistoryProgress(entry) {
   return { chapter, scroll: Number(saved?.scroll) || 0 };
 }
 
-function getHistorySourceLabel(entry) {
+export function getHistorySourceLabel(entry) {
   if (entry.sourceType === 'folder') return '章节文件夹';
   if (entry.sourceType === 'book') return '书籍文件';
   return '本地导入';
 }
 
-function formatHistoryTime(timestamp) {
+export function formatHistoryTime(timestamp) {
   if (!timestamp) return '最近阅读';
   try {
     return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp));
@@ -125,7 +133,7 @@ function formatHistoryTime(timestamp) {
   }
 }
 
-async function renderReadingHistory() {
+export async function renderReadingHistory() {
   const list = $('historyList');
   const empty = $('historyEmpty');
   if (!list || !empty) return;
@@ -193,7 +201,7 @@ async function renderReadingHistory() {
   });
 }
 
-function copyStoredValue(fromKey, toKey) {
+export function copyStoredValue(fromKey, toKey) {
   if (!fromKey || !toKey || fromKey === toKey) return Promise.resolve();
   if (isDesktop) {
     return Object.prototype.hasOwnProperty.call(desktopStorage, fromKey)
@@ -207,7 +215,7 @@ function copyStoredValue(fromKey, toKey) {
   return Promise.resolve();
 }
 
-async function relinkHistoryEntry(entry) {
+export async function relinkHistoryEntry(entry) {
   if (!isDesktop || !entry) return;
   const oldIdentity = getHistoryIdentity(entry);
   const oldProgress = getSavedProgress(entry);

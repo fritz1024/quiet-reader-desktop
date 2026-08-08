@@ -1,6 +1,15 @@
 // Split from index.html — maintain in separate files under js/
+import { state, $, readerContent, readerContainer, progressFill } from './state.js';
+import { escapeHtml, formatNumber } from './storage.js';
+import { getWordCount } from './text-utils.js';
+import { renderMarkdown } from './markdown.js';
+import { applyTextMarks } from './search.js';
+import { renderChapterList } from './chapter-render.js';
+import { syncMobileMoreActions } from './folder-io.js';
+import { updateNavButtonLabels, updateNavButtonStates } from './chapter-nav.js';
+import { applyReadingSettings, saveProgress } from './loader.js';
 
-function renderEpubViewer(chapter, chapterIndex) {
+export function renderEpubViewer(chapter, chapterIndex) {
   if (state.pdfViewer.document) { try { state.pdfViewer.document.destroy(); } catch(_) {} state.pdfViewer.document = null; }
   state.pdfViewer.pageCount = 0;
   state.pdfViewer.currentPage = 1;
@@ -17,7 +26,7 @@ function renderEpubViewer(chapter, chapterIndex) {
   renderEpubChapter(chapter, chapterIndex, epubIdx);
 }
 
-function renderEpubChapter(chapter, chapterIndex, epubIdx) {
+export function renderEpubChapter(chapter, chapterIndex, epubIdx) {
   const epubChapters = chapter.epubChapters || [];
   const epCh = epubChapters[epubIdx];
   if (!epCh) return;
@@ -49,7 +58,7 @@ function renderEpubChapter(chapter, chapterIndex, epubIdx) {
   saveEpubChapter(chapterIndex, epubIdx);
 }
 
-function getEpubSavedChapter(chapterIndex) {
+export function getEpubSavedChapter(chapterIndex) {
   try {
     const key = 'reader_epub_chapters';
     const data = JSON.parse(localStorage.getItem(key) || '{}');
@@ -60,7 +69,7 @@ function getEpubSavedChapter(chapterIndex) {
   return 0;
 }
 
-function saveEpubChapter(chapterIndex, epubIdx) {
+export function saveEpubChapter(chapterIndex, epubIdx) {
   try {
     const key = 'reader_epub_chapters';
     const data = JSON.parse(localStorage.getItem(key) || '{}');
@@ -71,7 +80,7 @@ function saveEpubChapter(chapterIndex, epubIdx) {
   } catch(_) {}
 }
 
-function epubGoToChapter(epubIdx) {
+export function epubGoToChapter(epubIdx) {
   const chapter = state.chapters[state.currentChapter];
   if (!chapter || !chapter.isEpubFile) return;
   const epubChapters = chapter.epubChapters || [];

@@ -1,13 +1,20 @@
+/* global pdfjsLib */
 // Split from index.html — maintain in separate files under js/
 // ── PDF Viewer Engine ──
-const pdfPageCache = new Map();
-const PDF_CACHE_MAX = 10;
+import { state, $, readerContent, readerContainer, progressFill, isDesktop, desktopApi } from './state.js';
+import { nativeFileFromResult } from './folder-io.js';
+import { readBinaryFile } from './parser.js';
+import { saveProgress } from './loader.js';
+import { updateNavButtonStates } from './chapter-nav.js';
+
+export const pdfPageCache = new Map();
+export const PDF_CACHE_MAX = 10;
 
 if (typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
 }
 
-async function renderPdfViewer(chapter, chapterIndex) {
+export async function renderPdfViewer(chapter, chapterIndex) {
   await cleanupPdfDocument();
   state.epubViewer = { chapters: [], currentEpubChapter: 0 };
   if (!chapter.pdfBuffer && chapter.pdfLazyFolder && chapter.pdfLazyPath && isDesktop) {
@@ -48,7 +55,7 @@ async function renderPdfViewer(chapter, chapterIndex) {
   }
 }
 
-async function renderPdfPage(pageNumber) {
+export async function renderPdfPage(pageNumber) {
   const pdfDocument = state.pdfViewer.document;
   if (!pdfDocument || state.pdfViewer.rendering) return;
   if (state.pdfViewer.renderTask) { try { state.pdfViewer.renderTask.cancel(); } catch(_) {} }
@@ -103,7 +110,7 @@ async function renderPdfPage(pageNumber) {
   }
 }
 
-function updatePdfProgress() {
+export function updatePdfProgress() {
   const total = state.pdfViewer.pageCount;
   const current = state.pdfViewer.currentPage;
   if (total > 0) {
@@ -111,7 +118,7 @@ function updatePdfProgress() {
   }
 }
 
-function getPdfSavedPage(chapterIndex) {
+export function getPdfSavedPage(chapterIndex) {
   try {
     const key = 'reader_pdf_pages';
     const data = JSON.parse(localStorage.getItem(key) || '{}');
@@ -122,7 +129,7 @@ function getPdfSavedPage(chapterIndex) {
   return 0;
 }
 
-function savePdfPage(chapterIndex, page) {
+export function savePdfPage(chapterIndex, page) {
   try {
     const key = 'reader_pdf_pages';
     const data = JSON.parse(localStorage.getItem(key) || '{}');
@@ -133,7 +140,7 @@ function savePdfPage(chapterIndex, page) {
   } catch(_) {}
 }
 
-async function prefetchPdfPage(pageNumber) {
+export async function prefetchPdfPage(pageNumber) {
   const pdfDocument = state.pdfViewer.document;
   if (!pdfDocument || pageNumber < 1 || pageNumber > state.pdfViewer.pageCount) return;
   const cacheKey = `${state.currentChapter}_${pageNumber}`;
@@ -150,7 +157,7 @@ async function prefetchPdfPage(pageNumber) {
   } catch(_) {}
 }
 
-function bindPdfToolbarEvents() {
+export function bindPdfToolbarEvents() {
   const bind = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
   bind('pdfFirstPage', () => pdfGoToPage(1));
   bind('pdfPrevPage', () => pdfGoToPage(state.pdfViewer.currentPage - 1));
@@ -174,7 +181,7 @@ function bindPdfToolbarEvents() {
   }
 }
 
-function pdfGoToPage(pageNumber) {
+export function pdfGoToPage(pageNumber) {
   const clamped = Math.max(1, Math.min(pageNumber, state.pdfViewer.pageCount));
   if (clamped !== state.pdfViewer.currentPage) {
     renderPdfPage(clamped);
@@ -182,34 +189,34 @@ function pdfGoToPage(pageNumber) {
   }
 }
 
-function pdfZoomIn() {
+export function pdfZoomIn() {
   state.pdfViewer.zoomMode = 'custom';
   state.pdfViewer.zoomLevel = Math.min(state.pdfViewer.zoomLevel * 1.25, 5.0);
   const btn = $('pdfFitWidth'); if (btn) btn.classList.remove('active');
   renderPdfPage(state.pdfViewer.currentPage);
 }
 
-function pdfZoomOut() {
+export function pdfZoomOut() {
   state.pdfViewer.zoomMode = 'custom';
   state.pdfViewer.zoomLevel = Math.max(state.pdfViewer.zoomLevel / 1.25, 0.25);
   const btn = $('pdfFitWidth'); if (btn) btn.classList.remove('active');
   renderPdfPage(state.pdfViewer.currentPage);
 }
 
-function pdfFitWidth() {
+export function pdfFitWidth() {
   state.pdfViewer.zoomMode = 'fit-width';
   const btn = $('pdfFitWidth'); if (btn) btn.classList.add('active');
   renderPdfPage(state.pdfViewer.currentPage);
 }
 
-function pdfToggleDarkInvert() {
+export function pdfToggleDarkInvert() {
   state.pdfViewer.darkInvert = !state.pdfViewer.darkInvert;
   const btn = $('pdfDarkInvert'); if (btn) btn.classList.toggle('active', state.pdfViewer.darkInvert);
   const canvas = $('pdfCanvas');
   if (canvas) canvas.classList.toggle('pdf-inverted', state.pdfViewer.darkInvert);
 }
 
-async function cleanupPdfDocument() {
+export async function cleanupPdfDocument() {
   if (state.pdfViewer.renderTask) { try { state.pdfViewer.renderTask.cancel(); } catch(_) {} }
   if (state.pdfViewer.document) {
     try { state.pdfViewer.document.destroy(); } catch(_) {}
@@ -225,6 +232,6 @@ async function cleanupPdfDocument() {
   pdfPageCache.clear();
 }
 
-function isCurrentChapterPdf() {
+export function isCurrentChapterPdf() {
   return Boolean(state.chapters[state.currentChapter]?.isPdf);
 }

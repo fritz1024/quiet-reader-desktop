@@ -1,5 +1,7 @@
 // Split from index.html — maintain in separate files under js/
-function getChapterGroupInfo(chapterIndex) {
+import { state, $ } from './state.js';
+
+export function getChapterGroupInfo(chapterIndex) {
   const ch = state.chapters[chapterIndex];
   if (!ch) return { groupIndex: chapterIndex, groupTotal: state.chapters.length, groupLabel: '章节' };
   const cat = ch.category || 'content';
@@ -27,7 +29,7 @@ function getChapterGroupInfo(chapterIndex) {
   return { groupIndex: groupIndex - 1, groupTotal, groupLabel: groupLabels[groupKey] || '章节' };
 }
 
-function updateNavButtonLabels() {
+export function updateNavButtonLabels() {
   const ch = state.chapters[state.currentChapter];
   const prevSpan = $('prevPageBtn')?.querySelector('span');
   const nextSpan = $('nextPageBtn')?.querySelector('span');
@@ -44,7 +46,7 @@ function updateNavButtonLabels() {
   }
 }
 
-function updateNavButtonStates() {
+export function updateNavButtonStates() {
   const ch = state.chapters[state.currentChapter];
   if (!ch) return;
   if (ch.isPdf) {

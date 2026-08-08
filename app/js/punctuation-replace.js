@@ -1,5 +1,14 @@
 // Split from index.html — maintain in separate files under js/
-async function replacePunctuation(scope = 'all') {
+import { state, $, readerContainer } from './state.js';
+import { formatNumber, saveLibrarySnapshot } from './storage.js';
+import { renderChapter } from './chapter-render.js';
+import { showToast } from './loader.js';
+import { getPunctuationOptions, setPunctuationOptions, getCustomRules, applyCustomRules, renderCustomRules, normalizePunctuation } from './text-utils.js';
+import { getChapterSourceKey, cloneChapters, canSaveChapterToSource, getChapterSourceDocumentKey, buildSourceDocumentUpdate, applySourceDocumentUpdate, saveAllSourceDocuments, syncEditedChapterEdits, saveChapterEdits } from './chapter.js';
+import { normalizeHtmlPunctuation, getEpubHtmlText, getChapterBodyContent } from './parser.js';
+import { getDirectEditSnapshot, saveDirectEdit, updateEditorResult, getCurrentFileChapters, getCurrentFileLabel } from './editing.js';
+
+export async function replacePunctuation(scope = 'all') {
   if (!state.chapters.length || state.demo) { updateEditorResult('请先导入真实书籍，再进行文本编辑。'); return; }
   const options = getPunctuationOptions();
   const hasCustomRules = getCustomRules().some(r => r.enabled !== false && r.from);
@@ -83,7 +92,7 @@ async function replacePunctuation(scope = 'all') {
   showToast(totalChanges ? `已规范 ${formatNumber(totalChanges)} 处标点` : '没有需要替换的标点');
 }
 
-async function undoPunctuation() {
+export async function undoPunctuation() {
   if (!state.punctuationHistory) return;
   const previousScroll = readerContainer.scrollTop;
   const snapshot = state.punctuationHistory;

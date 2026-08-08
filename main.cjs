@@ -1,5 +1,4 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
-const { autoUpdater } = require('electron-updater');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -153,6 +152,7 @@ async function configureAutoUpdater() {
     return;
   }
 
+  const { autoUpdater } = require('electron-updater');
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.allowDowngrade = false;
@@ -1027,7 +1027,11 @@ function createWindow() {
     if (rendererReady) mainWindow.webContents.send('reader:close-requested');
     else closeRequestPending = true;
   });
-  mainWindow.loadFile(path.join(__dirname, 'app', 'index.html'));
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  }
   if (isDevelopment) {
     mainWindow.webContents.on('before-input-event', (event, input) => {
       const key = String(input.key || '').toLowerCase();

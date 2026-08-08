@@ -1,5 +1,10 @@
 // Split from index.html — maintain in separate files under js/
-function setFolderSource(handle) {
+import { state, isDesktop, desktopApi, $, textFilePattern, pdfFilePattern, settingsPanel, importPanel, editorPanel, backupPanel, searchPanel, marksPanel, exportPanel, mobileMorePanel, readerContainer, classifyFileCategory } from './state.js';
+import { getSavedFolder, saveFolderHandle } from './storage.js';
+import { canSaveChapterToSource, getChapterSourceDocumentKey } from './chapter.js';
+import { showToast, showLoading, loadFromFileItems, loadBookFile } from './loader.js';
+
+export function setFolderSource(handle) {
   state.folderHandle = handle || null;
   const canUpdate = isDesktop ? state.sourceType === 'folder' && Boolean(state.sourcePath) : (Boolean(handle) || state.chapters.length > 0);
   $('updateFolderBtn').classList.toggle('show', !state.demo && canUpdate);
@@ -11,7 +16,7 @@ function setFolderSource(handle) {
   syncMobileMoreActions();
 }
 
-function syncMobileMoreActions() {
+export function syncMobileMoreActions() {
   const canUpdate = isDesktop
     ? state.sourceType === 'folder' && Boolean(state.sourcePath)
     : Boolean(state.folderHandle || state.chapters.length);
@@ -24,7 +29,7 @@ function syncMobileMoreActions() {
   $('mobileShowSourceBtn').hidden = !canUseSource;
 }
 
-function closeFloatingPanels(except = '') {
+export function closeFloatingPanels(except = '') {
   const panels = {
     settings: settingsPanel,
     import: importPanel,
@@ -42,7 +47,7 @@ function closeFloatingPanels(except = '') {
   if (except !== 'more') $('mobileMoreBtn').setAttribute('aria-expanded', 'false');
 }
 
-function openFloatingPanel(name, focusTarget = null) {
+export function openFloatingPanel(name, focusTarget = null) {
   const panels = {
     settings: settingsPanel,
     import: importPanel,
@@ -64,7 +69,7 @@ function openFloatingPanel(name, focusTarget = null) {
   return show;
 }
 
-function toggleMobileMorePanel(force) {
+export function toggleMobileMorePanel(force) {
   const show = typeof force === 'boolean' ? force : !mobileMorePanel.classList.contains('show');
   if (show) {
     closeFloatingPanels('more');
@@ -74,7 +79,7 @@ function toggleMobileMorePanel(force) {
   $('mobileMoreBtn').setAttribute('aria-expanded', String(show));
 }
 
-async function requestFolderPermission(handle, allowRequest) {
+export async function requestFolderPermission(handle, allowRequest) {
   if (!handle || typeof handle.queryPermission !== 'function') return false;
   try {
     let permission = await handle.queryPermission({ mode: 'read' });
@@ -87,7 +92,7 @@ async function requestFolderPermission(handle, allowRequest) {
   }
 }
 
-async function collectDirectoryFiles(handle, prefix = '') {
+export async function collectDirectoryFiles(handle, prefix = '') {
   const files = [];
   for await (const entry of handle.values()) {
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -102,7 +107,7 @@ async function collectDirectoryFiles(handle, prefix = '') {
   return files;
 }
 
-async function chooseFolder() {
+export async function chooseFolder() {
   if (isDesktop) {
     try {
       const folderPath = await desktopApi.chooseFolder();
@@ -129,7 +134,7 @@ async function chooseFolder() {
   }
 }
 
-function toggleImportPanel(force) {
+export function toggleImportPanel(force) {
   const show = typeof force === 'boolean' ? force : !importPanel.classList.contains('show');
   if (show) {
     closeFloatingPanels('import');
@@ -138,7 +143,7 @@ function toggleImportPanel(force) {
   $('openImportBtn').setAttribute('aria-expanded', String(show));
 }
 
-async function updateFolder() {
+export async function updateFolder() {
   if (isDesktop) {
     if (!state.sourcePath || state.sourceType !== 'folder') { chooseFolder(); return; }
     await loadFromDesktopFolder(state.sourcePath, { isUpdate: true });
@@ -158,7 +163,7 @@ async function updateFolder() {
   await loadFromDirectory(handle, { isUpdate: true });
 }
 
-async function loadFromDirectory(handle, options = {}) {
+export async function loadFromDirectory(handle, options = {}) {
   showLoading(true);
   try {
     const items = await collectDirectoryFiles(handle);
@@ -173,7 +178,7 @@ async function loadFromDirectory(handle, options = {}) {
   }
 }
 
-function nativeFileFromResult(result) {
+export function nativeFileFromResult(result) {
   if (!result || !result.name) throw new Error('无法读取所选文件');
   if (!result.bytes) return null;
   const file = new File([result.bytes], result.name, { type: result.type || 'application/octet-stream' });
@@ -182,7 +187,7 @@ function nativeFileFromResult(result) {
   return file;
 }
 
-async function loadDesktopBookPath(filePath, options = {}) {
+export async function loadDesktopBookPath(filePath, options = {}) {
   if (!isDesktop || !filePath) return false;
   try {
     const result = await desktopApi.readBook(filePath);
@@ -198,7 +203,7 @@ async function loadDesktopBookPath(filePath, options = {}) {
   }
 }
 
-async function loadFromDesktopFolder(folderPath, options = {}) {
+export async function loadFromDesktopFolder(folderPath, options = {}) {
   if (!isDesktop || !folderPath) return false;
   showLoading(true);
   try {
@@ -234,7 +239,7 @@ async function loadFromDesktopFolder(folderPath, options = {}) {
   }
 }
 
-async function reloadSource() {
+export async function reloadSource() {
   if (!isDesktop || !state.sourcePath) return;
   if (state.sourceType === 'folder') {
     await loadFromDesktopFolder(state.sourcePath, { isUpdate: true });
@@ -243,7 +248,7 @@ async function reloadSource() {
   }
 }
 
-async function showSourceInExplorer() {
+export async function showSourceInExplorer() {
   if (!isDesktop || !state.sourcePath) return;
   try {
     await desktopApi.showSource(state.sourcePath, state.sourceType === 'folder');
@@ -253,7 +258,7 @@ async function showSourceInExplorer() {
   }
 }
 
-function getSourceBackupRequest() {
+export function getSourceBackupRequest() {
   const chapter = state.chapters[state.currentChapter];
   if (!isDesktop || !desktopApi?.listSourceBackups || !canSaveChapterToSource(chapter)) return null;
   const request = { sourcePath: state.sourcePath, sourceType: state.sourceType };
@@ -261,20 +266,20 @@ function getSourceBackupRequest() {
   return request;
 }
 
-function formatBackupSize(size) {
+export function formatBackupSize(size) {
   const bytes = Math.max(0, Number(size) || 0);
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function formatBackupTime(value) {
+export function formatBackupTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '时间未知';
   return date.toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-async function openSourceBackups() {
+export async function openSourceBackups() {
   const request = getSourceBackupRequest();
   if (!request) { showToast('当前内容没有可恢复的原文件备份'); return; }
   closeFloatingPanels('backup');

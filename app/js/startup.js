@@ -1,5 +1,33 @@
 // Split from index.html — maintain in separate files under js/
-async function restoreSavedFolder() {
+import {
+  state, $, isDesktop, desktopApi, readerContainer,
+  desktopReadyForBooks, setDesktopReadyForBooks, pendingDesktopBookPaths,
+  initializeDesktopStorage, initializeUpdater
+} from './state.js';
+import {
+  getSavedFolder, getSavedLibrary, setStoredJson, getStoredJson,
+  createLibraryIdentity, loadMarks, saveLibrarySnapshot, getSavedProgress
+} from './storage.js';
+import {
+  hasRestorableSnapshotContent, getHistoryProgress,
+  renderReadingHistory, updateHistoryEntry
+} from './history.js';
+import {
+  requestFolderPermission, setFolderSource, loadFromDirectory,
+  loadFromDesktopFolder, loadDesktopBookPath
+} from './folder-io.js';
+import { getWordCount, setPunctuationOptions, renderCustomRules } from './text-utils.js';
+import { applyChapterEdits, loadChapterEdits } from './chapter.js';
+import { inferChapterTypes, getChapterBodyContent } from './parser.js';
+import { exitDirectEditing, handleCloseRequest } from './editing.js';
+import { showToast, toggleSidebar, openReader, showHome, loadSettings } from './loader.js';
+import { renderChapter } from './chapter-render.js';
+
+
+
+
+
+export async function restoreSavedFolder() {
   const saved = await getSavedFolder();
   if (state.demo || state.chapters.length) return;
   const snapshot = await getSavedLibrary();
@@ -58,7 +86,7 @@ async function restoreSavedFolder() {
   showToast('已恢复上次阅读内容，点击更新同步新章节');
 }
 
-async function restoreHistorySnapshot(snapshot, entry) {
+export async function restoreHistorySnapshot(snapshot, entry) {
   if (!hasRestorableSnapshotContent(snapshot)) return false;
   state.demo = false;
   state.bookTitle = snapshot.bookTitle || entry?.bookTitle || '我的小说';
@@ -90,7 +118,7 @@ async function restoreHistorySnapshot(snapshot, entry) {
   return true;
 }
 
-async function loadHistoryEntry(entry) {
+export async function loadHistoryEntry(entry) {
   if (!entry) return;
   if (state.directEditing && !(await exitDirectEditing())) return;
   let loaded = false;
@@ -117,14 +145,14 @@ async function loadHistoryEntry(entry) {
   showToast('原始文件无法读取，且没有可用的本地副本');
 }
 
-async function openDesktopPaths(paths) {
+export async function openDesktopPaths(paths) {
   const bookPaths = Array.isArray(paths) ? paths.filter(Boolean) : [];
   if (!bookPaths.length) return false;
   if (bookPaths.length > 1) showToast('一次只能打开一本书，已载入第一个文件');
   return loadDesktopBookPath(bookPaths[0]);
 }
 
-async function startReader() {
+export async function startReader() {
   await initializeDesktopStorage();
   loadSettings();
   $('dataTransferSection').hidden = !isDesktop;
@@ -147,7 +175,7 @@ async function startReader() {
       openDesktopPaths(paths);
     });
     const initialPaths = [...await desktopApi.takeOpenBookPaths(), ...pendingDesktopBookPaths.splice(0)];
-    desktopReadyForBooks = true;
+    setDesktopReadyForBooks(true);
     if (initialPaths.length) {
       await openDesktopPaths(initialPaths);
       return;

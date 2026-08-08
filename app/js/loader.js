@@ -1,4 +1,76 @@
+/* global JSZip */
 // Split from index.html — maintain in separate files under js/
+import {
+  state, isDesktop, desktopApi, $, readingPresets,
+  uploadArea, readerContainer, readerContent, chapterList, sidebar,
+  progressFill, pageNav, settingsPanel, importPanel, editorPanel,
+  backupPanel, searchPanel, marksPanel, exportPanel, mobileMorePanel,
+  readerDialog, readerDialogTitle, readerDialogMessage,
+  dialogKeepEditingBtn, dialogDiscardBtn, dialogSaveBtn,
+  pendingReaderDialogResolve, bookInput, folderInput, folderUploadBox,
+  textFilePattern, bookFilePattern
+, historyStorageKey} from './state.js';
+import {
+  getStoredJson, setStoredJson, escapeHtml, formatNumber,
+  isSupportedFile, isBookFile, isPdfFile, isMarkdownFile,
+  getFilenameWithoutExtension, saveFolderHandle, getSavedFolder,
+  saveLibrarySnapshot, getSavedLibrary, getProgressStorageKey,
+  getSavedProgress, getChapterEditsStorageKey, loadMarks, saveMarks,
+  createLibraryIdentity, getHistoryIdentity
+} from './storage.js';
+import {
+  getChapterKey, normalizeHistory, getReadingHistory,
+  saveReadingHistory, renderReadingHistory, updateHistoryEntry,
+  getHistoryProgress
+} from './history.js';
+import {
+  setFolderSource, syncMobileMoreActions, closeFloatingPanels,
+  openFloatingPanel, toggleMobileMorePanel, requestFolderPermission,
+  chooseFolder, toggleImportPanel, updateFolder, nativeFileFromResult,
+  loadDesktopBookPath, loadFromDesktopFolder, reloadSource,
+  showSourceInExplorer, getSourceBackupRequest, openSourceBackups,
+  loadFromDirectory
+} from './folder-io.js';
+import {
+  naturalCompare, getWordCount, getBookWordCount, markdownToPlainText,
+  normalizePunctuation, getPunctuationOptions, setPunctuationOptions,
+  renderCustomRules, getCustomRules, addCustomRule, removeCustomRule, toggleCustomRule
+} from './text-utils.js';
+import {
+  normalizeChapters, cloneChapters, getChapterSourceKey,
+  loadChapterEdits, saveChapterEdits, applyChapterEdits,
+  syncEditedChapterEdits, canSaveChapterToSource,
+  getChapterSourceDocumentKey
+} from './chapter.js';
+import {
+  inferChapterTypes, getChapterBodyContent, readBinaryFile, readFile,
+  chaptersFromTextContent, parseBookFile, parseEpubFile, getEpubHtmlText,
+  formatImportDiagnostics
+} from './parser.js';
+import {
+  setDirectEditing, exitDirectEditing, saveDirectEdit,
+  getDirectEditSnapshot, hasUnsavedDirectEdit, askUnsavedAction,
+  updateEditorResult, handleCloseRequest, askAppDataImport,
+  closeReaderDialog, getCurrentFileChapters
+} from './editing.js';
+import { replacePunctuation, undoPunctuation } from './punctuation-replace.js';
+import { renderMarkdown } from './markdown.js';
+import {
+  renderSearchResults, updateSearch, refreshSearchIndex, setSearchScope,
+  goToSearchMatch, renderMarks, addBookmark, addAnnotation, applyTextMarks,
+  exportCurrentContent, updateExportControls, hideContextMenu,
+  showContextMenu, copySelectionText, searchSelectionText,
+  replaceSelectionText, closeReplaceDialog, applyReplaceDialog,
+  saveContextMenuImage, setContextMenuImageSrc, contextMenu
+} from './search.js';
+import { renderChapterList, renderChapter, sidebarCollapsedGroups, setSidebarCollapsedGroups } from './chapter-render.js';
+import {
+  renderPdfViewer, cleanupPdfDocument, pdfGoToPage, pdfZoomIn,
+  pdfZoomOut, isCurrentChapterPdf, savePdfPage, renderPdfPage
+} from './pdf-viewer.js';
+import { getChapterGroupInfo, updateNavButtonLabels, updateNavButtonStates } from './chapter-nav.js';
+import { renderEpubViewer, epubGoToChapter, saveEpubChapter } from './epub-viewer.js';
+
 
 async function lazyLoadChapter(chapter) {
   if (!chapter.lazyFolder || !chapter.lazyPath || !isDesktop) return;
@@ -66,7 +138,7 @@ function showLoading(show) { $('loading').classList.toggle('show', show); }
 async function loadParsedChapters(chapters, bookTitle, folderHandle = null, options = {}) {
   if (!chapters.length) { showToast('没有解析出可阅读的章节'); return false; }
   if (state.directEditing && !(await exitDirectEditing())) return false;
-  if (!options.isUpdate && !options.restoring) sidebarCollapsedGroups = {};
+  if (!options.isUpdate && !options.restoring) setSidebarCollapsedGroups({});
   syncEditedChapterEdits();
   const parsedChapters = inferChapterTypes(chapters);
   const previousEdits = { ...state.chapterEdits };
@@ -301,7 +373,7 @@ function loadDemo() {
   updateEditorResult('');
   state.chapters = [
     { title: '第一章 潮汐写下的地址', filename: '01-潮汐写下的地址.txt', isMarkdown: false, content: '凌晨四点，雾港还没有醒来。\n\n潮水退到堤岸之外，露出一条窄窄的石路。林澈沿着石路往前走，手里的信封被海风吹得微微发抖。信上没有寄件人的名字，只有一个地址：灯塔下，第三块蓝色礁石。\n\n他在礁石旁找到了一只旧铁盒。盒盖上刻着一行字：如果你收到了这封信，说明我终于学会了告别。' },
-    { title: '第二章 没有寄出的信', filename: '02-没有寄出的信.txt', isMarkdown: false, content: '铁盒里只有一张折叠得很整齐的纸。纸张已经发黄，墨水却清晰得像刚刚写下。\n\n“林澈，见字如面。你总说海会替人保守秘密，可海水也会把秘密送回岸上。等下一次潮汐来到这里，请替我看看灯塔的光。”\n\n他读了两遍，把信放回盒中。远处的灯塔忽然亮起，像有人在雾里按下了一盏迟到多年的灯。' },
+    { title: '第二章 没有寄出的信', filename: '02-没有寄出的信.txt', isMarkdown: false, content: '铁盒里只有一张折叠得很整齐的纸。纸张已经发黄，墨水却清晰得像刚刚写下。\n\n"林澈，见字如面。你总说海会替人保守秘密，可海水也会把秘密送回岸上。等下一次潮汐来到这里，请替我看看灯塔的光。"\n\n他读了两遍，把信放回盒中。远处的灯塔忽然亮起，像有人在雾里按下了一盏迟到多年的灯。' },
     { title: '第三章 灯塔的回声', filename: '03-灯塔的回声.txt', isMarkdown: false, content: '天亮以后，雾散得很慢。林澈登上灯塔，窗外的海面被晨光切成细碎的银片。\n\n墙角摆着一台老式收音机，旋钮旁贴着一张褪色的便签：调到 87.6。\n\n杂音之后，熟悉的声音从很远的地方传来。那声音说，别急着把故事读完。有些答案，只有在你愿意继续往前走时，才会出现。' }
   ];
   openReader(); renderChapter(0); if (window.innerWidth >= 841) toggleSidebar(true); showToast('已加载示例章节');
@@ -480,6 +552,7 @@ async function restoreProgress() {
   }
 }
 
+function _initUI() {
 folderUploadBox.addEventListener('click', event => { event.stopPropagation(); toggleImportPanel(true); });
 folderUploadBox.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleImportPanel(true); } });
 ['dragenter', 'dragover'].forEach(type => folderUploadBox.addEventListener(type, event => { event.preventDefault(); folderUploadBox.classList.add('dragover'); }));
@@ -739,7 +812,7 @@ readerContent.addEventListener('contextmenu', event => {
   const hasSelection = Boolean(selection && !selection.isCollapsed && selection.toString().trim().length && readerContent.contains(selection.anchorNode));
   if (!hasSelection && !isImage && !state.chapters.length) return;
   event.preventDefault();
-  contextMenuImageSrc = isImage ? image.getAttribute('src') || '' : '';
+  setContextMenuImageSrc(isImage ? image.getAttribute('src') || '' : '');
   showContextMenu(event.clientX, event.clientY, { hasSelection, isImage });
 });
 contextMenu.addEventListener('click', event => {
@@ -897,3 +970,9 @@ document.addEventListener('keydown', event => {
   if (event.key === '-' || event.key === '_') $('fontMinus').click();
 });
 
+}
+export { lazyLoadChapter, selectChapter, showLoading, loadParsedChapters, loadFromFileItems, loadFromFiles, loadBookFile, loadBookFiles, loadDemo, openReader, showHome, toggleSidebar, copyCurrentChapter, fallbackCopy, showToast, getReadingPreset, updateReadingSettingControls, setReadingPreset, markCustomReadingSettings, applyReadingSettings, saveSettings, loadSettings, updateHistoryProgress, saveProgress, restoreProgress };
+
+
+// Defer UI initialization to break circular dependency with state.js
+setTimeout(_initUI, 0);

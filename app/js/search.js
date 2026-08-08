@@ -1,9 +1,21 @@
 // Split from index.html — maintain in separate files under js/
-function normalizeSearchQuery(value) {
+import { state, $, readerContainer, readerContent, exportPanel, isDesktop, desktopApi } from './state.js';
+import { escapeHtml, formatNumber, saveMarks, getMarksStorageKey, saveLibrarySnapshot } from './storage.js';
+import { renderChapter, renderChapterList } from './chapter-render.js';
+import { showToast, selectChapter } from './loader.js';
+import { getChapterKey } from './history.js';
+import { getWordCount, markdownToPlainText } from './text-utils.js';
+import { getEpubHtmlText, getChapterBodyContent } from './parser.js';
+import { renderMarkdown } from './markdown.js';
+import { getChapterSourceKey, canSaveChapterToSource, saveChapterToSource, saveChapterEdits } from './chapter.js';
+import { getEditableChapterBody, getDirectEditContent, exitDirectEditing } from './editing.js';
+import { openFloatingPanel } from './folder-io.js';
+
+export function normalizeSearchQuery(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
-function getSearchableChapterText(chapter) {
+export function getSearchableChapterText(chapter) {
   const content = getChapterBodyContent(chapter);
   if (chapter?.isEpubHtml) {
     const documentNode = new DOMParser().parseFromString(chapter.htmlContent || content, 'text/html');
@@ -16,14 +28,14 @@ function getSearchableChapterText(chapter) {
   return content.split(/\n+/).filter(line => line.trim()).map(line => line.trim()).join('');
 }
 
-function getExportChapterContent(chapter, format) {
+export function getExportChapterContent(chapter, format) {
   const content = getChapterBodyContent(chapter);
   if (format === 'markdown' && chapter.isMarkdown) return content.trim();
   if (chapter.isEpubHtml) return getEpubHtmlText(chapter.htmlContent || content);
   return chapter.isMarkdown ? markdownToPlainText(content) : content.trim();
 }
 
-function getExportContent(scope = state.exportScope, format = state.exportFormat) {
+export function getExportContent(scope = state.exportScope, format = state.exportFormat) {
   const currentChapter = state.chapters[state.currentChapter];
   const chapters = scope === 'book'
     ? state.chapters.filter(chapter => !chapter.isCover && chapter.category !== 'reference')
@@ -36,13 +48,13 @@ function getExportContent(scope = state.exportScope, format = state.exportFormat
   }).filter(Boolean).join(separator).trim();
 }
 
-function getExportSuggestedName() {
+export function getExportSuggestedName() {
   const chapter = state.chapters[state.currentChapter];
   const suffix = state.exportScope === 'book' ? '全文' : (chapter?.title || '当前章节');
   return `${state.bookTitle || '静读阅读器'}-${suffix}`;
 }
 
-function updateExportControls() {
+export function updateExportControls() {
   document.querySelectorAll('[data-export-scope]').forEach(button => {
     button.classList.toggle('active', button.dataset.exportScope === state.exportScope);
   });
@@ -61,7 +73,7 @@ function updateExportControls() {
   $('confirmExportBtn').disabled = chapters.length === 0;
 }
 
-async function exportCurrentContent() {
+export async function exportCurrentContent() {
   if (!state.chapters.length || state.demo) { showToast('请先导入一本书'); return; }
   if (state.directEditing && !(await exitDirectEditing())) return;
   const content = getExportContent();
@@ -91,13 +103,13 @@ async function exportCurrentContent() {
   }
 }
 
-function getSearchSnippet(text, start, end) {
+export function getSearchSnippet(text, start, end) {
   const left = Math.max(0, start - 34);
   const right = Math.min(text.length, end + 58);
   return `${left > 0 ? '...' : ''}${text.slice(left, right)}${right < text.length ? '...' : ''}`;
 }
 
-function buildBookSearch(query, scope = state.search.scope) {
+export function buildBookSearch(query, scope = state.search.scope) {
   const needle = normalizeSearchQuery(query);
   if (!needle) return [];
   const lowerNeedle = needle.toLocaleLowerCase('zh-CN');
@@ -127,7 +139,7 @@ function buildBookSearch(query, scope = state.search.scope) {
   return matches;
 }
 
-function renderSearchResults() {
+export function renderSearchResults() {
   const summary = $('searchSummary');
   const results = $('searchResults');
   const query = normalizeSearchQuery(state.search.query);
@@ -177,7 +189,7 @@ function renderSearchResults() {
   }
 }
 
-function updateSearch(query = $('searchInput').value) {
+export async function updateSearch(query = $('searchInput').value) {
   const hadRenderedSearchMarks = Boolean(readerContent.querySelector('.search-match'));
   const previousScroll = readerContainer.scrollTop;
   refreshSearchIndex(query);
@@ -190,7 +202,7 @@ function updateSearch(query = $('searchInput').value) {
   }
 }
 
-function refreshSearchIndex(query = state.search.query) {
+export function refreshSearchIndex(query = state.search.query) {
   const normalized = normalizeSearchQuery(query);
   const scope = state.search.scope === 'book' ? 'book' : 'chapter';
   state.search = { query: normalized, scope, matches: buildBookSearch(normalized, scope), currentIndex: -1 };
@@ -201,7 +213,7 @@ function refreshSearchIndex(query = state.search.query) {
   renderSearchResults();
 }
 
-function setSearchScope(scope) {
+export async function setSearchScope(scope) {
   const nextScope = scope === 'book' ? 'book' : 'chapter';
   if (state.search.scope === nextScope) return;
   const hadRenderedSearchMarks = Boolean(readerContent.querySelector('.search-match'));
@@ -214,7 +226,7 @@ function setSearchScope(scope) {
   }
 }
 
-async function goToSearchMatch(index) {
+export async function goToSearchMatch(index) {
   const matches = state.search.matches;
   if (!matches.length) return;
   const next = (index + matches.length) % matches.length;
@@ -230,7 +242,7 @@ async function goToSearchMatch(index) {
   scrollToCurrentSearchMatch();
 }
 
-function scrollToCurrentSearchMatch() {
+export function scrollToCurrentSearchMatch() {
   requestAnimationFrame(() => {
     const active = readerContent.querySelector('.search-match.active');
     if (!active) return;
@@ -239,7 +251,7 @@ function scrollToCurrentSearchMatch() {
   });
 }
 
-function findTextRangeInBody(body, targetStart, targetEnd, fallbackQuote = '') {
+export function findTextRangeInBody(body, targetStart, targetEnd, fallbackQuote = '') {
   const text = body?.textContent || '';
   let start = Math.max(0, Number(targetStart) || 0);
   let end = Math.max(start, Number(targetEnd) || start);
@@ -266,7 +278,7 @@ function findTextRangeInBody(body, targetStart, targetEnd, fallbackQuote = '') {
   return range;
 }
 
-function applyTextMarks() {
+export function applyTextMarks() {
   if (state.directEditing) return;
   const body = getEditableChapterBody();
   const chapter = state.chapters[state.currentChapter];
@@ -306,7 +318,7 @@ function applyTextMarks() {
     });
 }
 
-function getSelectionInChapter() {
+export function getSelectionInChapter() {
   const body = getEditableChapterBody();
   const selection = window.getSelection();
   if (!body || !selection?.rangeCount || selection.isCollapsed) return null;
@@ -321,7 +333,7 @@ function getSelectionInChapter() {
   return { start, end: start + quote.length, quote };
 }
 
-function renderMarks() {
+export function renderMarks() {
   const list = $('markList');
   const empty = $('markEmpty');
   if (!list || !empty) return;
@@ -353,7 +365,7 @@ function renderMarks() {
   });
 }
 
-async function addBookmark() {
+export async function addBookmark() {
   const chapter = state.chapters[state.currentChapter];
   if (!chapter || state.demo) { showToast('请先导入一本书'); return; }
   if (state.directEditing) { showToast('请先退出正文编辑，再添加书签或批注'); return; }
@@ -376,7 +388,7 @@ async function addBookmark() {
   showToast('已添加书签');
 }
 
-async function addAnnotation() {
+export async function addAnnotation() {
   const chapter = state.chapters[state.currentChapter];
   if (!chapter || state.demo) { showToast('请先导入一本书'); return; }
   if (state.directEditing) { showToast('请先退出正文编辑，再添加书签或批注'); return; }
@@ -403,7 +415,7 @@ async function addAnnotation() {
   showToast('已添加文本批注');
 }
 
-async function openMark(mark) {
+export async function openMark(mark) {
   const chapterIndex = state.chapters.findIndex(chapter => getChapterKey(chapter) === mark.chapterKey);
   if (chapterIndex < 0) { showToast('原章节已不存在'); return; }
   if (!(await selectChapter(chapterIndex))) return;
@@ -419,7 +431,7 @@ async function openMark(mark) {
   });
 }
 
-async function deleteMark(id) {
+export async function deleteMark(id) {
   state.marks = state.marks.filter(mark => mark.id !== id);
   await saveMarks();
   renderMarks();
@@ -427,16 +439,18 @@ async function deleteMark(id) {
   showToast('已删除标记');
 }
 
-const contextMenu = $('readerContextMenu');
-let contextMenuImageSrc = '';
+export const contextMenu = document.getElementById('readerContextMenu');
+export let contextMenuImageSrc = '';
 
-function hideContextMenu() {
+export function setContextMenuImageSrc(val) { contextMenuImageSrc = val; }
+
+export function hideContextMenu() {
   if (!contextMenu.classList.contains('show')) return;
   contextMenu.classList.remove('show');
   contextMenuImageSrc = '';
 }
 
-function showContextMenu(x, y, { hasSelection, isImage }) {
+export function showContextMenu(x, y, { hasSelection, isImage }) {
   contextMenu.querySelectorAll('[data-menu]').forEach(item => {
     const kind = item.dataset.menu;
     const show = (kind === 'copy' && hasSelection)
@@ -458,7 +472,7 @@ function showContextMenu(x, y, { hasSelection, isImage }) {
   contextMenu.style.visibility = '';
 }
 
-async function copySelectionText() {
+export async function copySelectionText() {
   const text = String(window.getSelection()?.toString() || '');
   if (!text) return;
   try {
@@ -469,7 +483,7 @@ async function copySelectionText() {
   }
 }
 
-function searchSelectionText() {
+export function searchSelectionText() {
   const text = String(window.getSelection()?.toString() || '').trim();
   if (!text) return;
   openFloatingPanel('search', $('searchInput'));
@@ -477,9 +491,9 @@ function searchSelectionText() {
   updateSearch(text);
 }
 
-let _replaceSavedSelection = null;
+export let _replaceSavedSelection = null;
 
-function replaceSelectionText() {
+export function replaceSelectionText() {
   const selection = window.getSelection();
   const text = String(selection?.toString() || '');
   if (!text) return;
@@ -493,14 +507,14 @@ function replaceSelectionText() {
   requestAnimationFrame(() => { textarea.focus(); textarea.select(); });
 }
 
-function closeReplaceDialog() {
+export function closeReplaceDialog() {
   const dialog = $('replaceDialog');
   dialog.classList.remove('show');
   dialog.setAttribute('aria-hidden', 'true');
   _replaceSavedSelection = null;
 }
 
-async function applyReplaceDialog() {
+export async function applyReplaceDialog() {
   const textarea = $('replaceTextarea');
   const newText = textarea.value;
   const originalText = _replaceSavedSelection ? _replaceSavedSelection.toString() : '';
@@ -572,7 +586,7 @@ async function applyReplaceDialog() {
   showToast('已替换选中文字');
 }
 
-function dataUrlToBlob(dataUrl) {
+export function dataUrlToBlob(dataUrl) {
   const match = /^data:([^;,]+);base64,(.+)$/.exec(dataUrl);
   if (!match) return null;
   const binary = atob(match[2]);
@@ -581,7 +595,7 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: match[1] });
 }
 
-function guessImageExtension(src) {
+export function guessImageExtension(src) {
   const match = /^data:image\/([a-zA-Z0-9+.-]+)[;,]/.exec(src);
   if (!match) return 'png';
   const type = match[1].toLowerCase();
@@ -590,7 +604,7 @@ function guessImageExtension(src) {
   return type.replace(/[^a-z0-9]/g, '') || 'png';
 }
 
-async function saveContextMenuImage() {
+export async function saveContextMenuImage() {
   const src = contextMenuImageSrc;
   if (!src) return;
   try {
