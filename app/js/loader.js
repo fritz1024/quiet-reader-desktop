@@ -123,6 +123,13 @@ async function loadParsedChapters(chapters, bookTitle, folderHandle = null, opti
     if (matchedIndex >= 0) nextChapter = matchedIndex;
   }
   state.currentChapter = nextChapter;
+  const nextChapterObj = state.chapters[nextChapter];
+  const needsLazyLoad = nextChapterObj && nextChapterObj.lazyFolder && (nextChapterObj.content === null || (nextChapterObj.isEpubFile && (!nextChapterObj.epubChapters || !nextChapterObj.epubChapters.length)));
+  if (needsLazyLoad) {
+    showLoading(true);
+    await lazyLoadChapter(nextChapterObj);
+    showLoading(false);
+  }
   renderChapter(nextChapter, { saveProgress: false });
   if (options.isUpdate && previousKey) requestAnimationFrame(() => { readerContainer.scrollTop = previousScroll; });
   else if (!options.skipProgressRestore) restoreProgress();
