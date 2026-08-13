@@ -16,8 +16,15 @@ export async function replacePunctuation(scope = 'all') {
   if (state.directEditing && getDirectEditSnapshot() !== state.directEditOriginalText && !(await saveDirectEdit(false))) return;
 
   const currentOnly = scope === 'current';
-  const targets = currentOnly ? getCurrentFileChapters() : state.chapters;
-  if (!targets.length) { updateEditorResult('没有找到当前文件对应的章节。'); return; }
+  // 全局替换只作用于正文（category === 'content'）。设定、大纲、人物库等
+  // reference 文件不属于「全局」范围，绝不能被批量改写。
+  const targets = currentOnly
+    ? getCurrentFileChapters()
+    : state.chapters.filter(chapter => chapter.category !== 'reference' && !chapter.isCover);
+  if (!targets.length) {
+    updateEditorResult(currentOnly ? '没有找到当前文件对应的章节。' : '没有找到可替换的正文章节。');
+    return;
+  }
   const targetChapters = new Set(targets);
   const targetSourceKeys = new Set(targets.map(chapter => getChapterSourceDocumentKey(chapter)).filter(Boolean));
 
@@ -39,13 +46,17 @@ export async function replacePunctuation(scope = 'all') {
       ? { text: getEpubHtmlText(htmlResult.html), changes: 0 }
       : normalizePunctuation(chapter.content, options);
     const customTitle = canSaveChapterToSource(chapter)
-              ? { text: chapter.title, changes: 0 }
-              : applyCustomRules(titleResult.text);
-            const customContent = chapter.isEpubHtml
-              ? { text: contentResult.text, changes: 0 }
-              : applyCustomRules(contentResult.text);
-            totalChanges += customTitle.changes + customContent.changes;
-            return { ...chapter, title: customTitle.text, content: customContent.text, htmlContent: htmlResult?.html ?? chapter.htmlContent, wordCount: 0 };
+      ? { text: chapter.title, changes: 0 }
+      : applyCustomRules(titleResult.text);
+    const customContent = chapter.isEpubHtml
+      ? { text: contentResult.text, changes: 0 }
+      : applyCustomRules(contentResult.text);
+    // Count both passes: punctuation normalization and custom rules. For EPUB
+    // the punctuation count lives in htmlResult (contentResult.changes is 0),
+    // so these five terms never overlap.
+    totalChanges += titleResult.changes + contentResult.changes + (htmlResult?.changes || 0)
+      + customTitle.changes + customContent.changes;
+    return { ...chapter, title: customTitle.text, content: customContent.text, htmlContent: htmlResult?.html ?? chapter.htmlContent, wordCount: 0 };
   });
 
   state.punctuationHistory = snapshot;
@@ -56,13 +67,19 @@ export async function replacePunctuation(scope = 'all') {
     for (const chapter of state.chapters) {
       if (!canSaveChapterToSource(chapter)) continue;
       const sourceKey = getChapterSourceDocumentKey(chapter);
-      if (currentOnly && !targetSourceKeys.has(sourceKey)) continue;
+      // Always gate on the in-scope source keys. Previously this only applied
+      // when currentOnly, so 全局替换 rewrote every writable file on disk --
+      // including reference files that were never in targets.
+      if (!targetSourceKeys.has(sourceKey)) continue;
       const normalizedBody = getChapterBodyContent(chapter);
       const update = buildSourceDocumentUpdate(chapter, normalizedBody);
       applySourceDocumentUpdate(chapter, normalizedBody, update);
       writtenKeys.add(sourceKey);
     }
-    snapshot.savedKeys = currentOnly ? Array.from(writtenKeys) : null;
+    // Always record the exact keys written. Passing null means "every writable
+    // file" in saveAllSourceDocuments, which would overwrite (and back up)
+    // out-of-scope files such as 设定/大纲 even though their content is unchanged.
+    snapshot.savedKeys = Array.from(writtenKeys);
     savedSourceFiles = await saveAllSourceDocuments(snapshot.savedKeys);
   } catch (error) {
     console.error(error);
