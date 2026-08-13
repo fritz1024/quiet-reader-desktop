@@ -465,8 +465,10 @@ function markCustomReadingSettings() {
 
 function applyReadingSettings() {
   $('fontSizeValue').textContent = `${state.fontSize} px`;
-  document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol').forEach(el => el.style.fontSize = `${state.fontSize}px`);
-  document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol, .chapter-body blockquote').forEach(el => el.style.lineHeight = state.lineHeight);
+  // Markdown tables and definition lists size themselves in em, so setting the
+  // wrapper is enough for them to follow the reader's font size.
+  document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol, .chapter-body .md-table-wrap, .chapter-body dl').forEach(el => el.style.fontSize = `${state.fontSize}px`);
+  document.querySelectorAll('.chapter-body p, .chapter-body ul, .chapter-body ol, .chapter-body blockquote, .chapter-body .md-table-wrap, .chapter-body dl').forEach(el => el.style.lineHeight = state.lineHeight);
   const fonts = {
     serif: '"Noto Serif SC Variable", serif',
     sans: '"Noto Sans SC Variable", sans-serif',

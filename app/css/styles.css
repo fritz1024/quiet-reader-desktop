@@ -84,14 +84,28 @@ button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outli
 .chapter-body.direct-editing.raw-markdown { white-space: pre-wrap; text-align: left; text-indent: 0; }
 .chapter-body[contenteditable="true"] { caret-color: var(--accent); cursor: text; }
 .chapter-body p { margin: 0 0 1.15em; font-size: 18px; line-height: 2.05; text-align: justify; text-indent: 2em; overflow-wrap: break-word; }
-.chapter-body h2, .chapter-body h3, .chapter-body h4 { margin: 2em 0 .8em; color: var(--text); font-family: var(--reader-font-family, "Noto Serif SC Variable", serif); font-weight: 700; line-height: 1.45; }
+.chapter-body h2, .chapter-body h3, .chapter-body h4, .chapter-body h5, .chapter-body h6 { margin: 2em 0 .8em; color: var(--text); font-family: var(--reader-font-family, "Noto Serif SC Variable", serif); font-weight: 700; line-height: 1.45; }
 .chapter-body h2 { padding-bottom: .45em; border-bottom: 1px solid var(--line); font-size: 1.35em; }
 .chapter-body h3 { font-size: 1.18em; }
 .chapter-body h4 { font-size: 1.05em; }
+.chapter-body h5 { font-size: 1em; }
+.chapter-body h6 { color: var(--muted); font-size: .95em; }
+/* Tailwind's preflight resets menu/ol/ul to list-style:none, so markers have to
+   be put back explicitly here, and varied by depth the way print does it. */
 .chapter-body ul, .chapter-body ol { margin: 0 auto 1.3em; padding-left: 1.6em; font-size: 18px; line-height: 1.9; }
+.chapter-body ul { list-style-position: outside; list-style-type: disc; }
+.chapter-body ol { list-style-position: outside; list-style-type: decimal; }
+.chapter-body ul ul { list-style-type: circle; }
+.chapter-body ul ul ul { list-style-type: square; }
+.chapter-body ol ol { list-style-type: lower-alpha; }
+.chapter-body ol ol ol { list-style-type: lower-roman; }
+.chapter-body li { text-indent: 0; }
+.chapter-body li::marker { color: var(--muted); }
 .chapter-body li + li { margin-top: .25em; }
 .chapter-body blockquote { margin: 1.5em 0; padding: .5em 1.15em; color: var(--muted); border-left: 3px solid var(--accent); font-size: 17px; line-height: 1.9; }
 .chapter-body blockquote p { margin-bottom: .3em; text-indent: 0; color: inherit; }
+.chapter-body blockquote > :last-child { margin-bottom: 0; }
+.chapter-body blockquote blockquote { margin: .8em 0 0; font-size: 1em; }
 .chapter-body pre { margin: 1.5em 0; padding: 16px; overflow-x: auto; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; font-family: Consolas, "Courier New", monospace; font-size: 14px; line-height: 1.65; white-space: pre; }
 .chapter-body code { padding: .12em .35em; color: var(--warm); background: var(--surface-2); border-radius: 4px; font-family: Consolas, "Courier New", monospace; font-size: .86em; }
 .chapter-body pre code { padding: 0; color: inherit; background: transparent; font-size: inherit; }
@@ -105,6 +119,56 @@ button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outli
 .chapter-body.epub-cover { display: grid; min-height: calc(100dvh - 235px); place-items: center; }
 .chapter-body.epub-cover > * { max-width: 100%; }
 .chapter-body.epub-cover img { width: auto; max-width: min(100%, 580px); max-height: calc(100dvh - 245px); margin: 0 auto; }
+/* Markdown blocks. Prose paragraphs carry a 2em first-line indent, so anything
+   that nests a <p> has to reset it. */
+.chapter-body li > p, .chapter-body td p, .chapter-body th p, .chapter-body figcaption p, .chapter-body details p { text-indent: 0; }
+.chapter-body li > p { margin-bottom: .6em; }
+.chapter-body li > p:last-child { margin-bottom: 0; }
+.chapter-body li > ul, .chapter-body li > ol { margin: .3em 0 .3em; font-size: inherit; }
+.chapter-body li > pre, .chapter-body li > blockquote, .chapter-body li > .md-table-wrap { margin: .7em 0; }
+/* Markdown images: on their own line they centre as a block, mixed into a
+   sentence they stay inline. EPUB keeps its own rules above. */
+.chapter-body:not(.epub-html):not(.epub-cover) img { max-width: 100%; height: auto; border-radius: 8px; object-fit: contain; vertical-align: middle; }
+.chapter-body:not(.epub-html):not(.epub-cover) p > img:only-child { display: block; margin: 1.6em auto; }
+.md-table-wrap { max-width: 100%; margin: 1.6em 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 9px; font-size: 18px; }
+/* em, so the table tracks the reader's font size but stays a little denser than
+   body prose. */
+.md-table-wrap table { width: 100%; border-collapse: collapse; font-size: .87em; line-height: 1.75; }
+.md-table-wrap th, .md-table-wrap td { padding: .6em .85em; border-bottom: 1px solid var(--line); text-align: left; text-indent: 0; vertical-align: top; }
+.md-table-wrap th + th, .md-table-wrap td + td { border-left: 1px solid var(--line); }
+.md-table-wrap thead th { color: var(--text); background: var(--surface-2); font-weight: 700; white-space: nowrap; }
+.md-table-wrap tbody tr:last-child th, .md-table-wrap tbody tr:last-child td { border-bottom: 0; }
+.md-table-wrap tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
+/* Checkboxes replace the bullet, so this has to out-specify .chapter-body ul. */
+.chapter-body .md-task-list, .md-task-list { padding-left: 1.15em; list-style: none; }
+.md-task-item { position: relative; }
+.md-task-check { width: 15px; height: 15px; margin-right: .45em; accent-color: var(--accent); vertical-align: -2px; }
+.md-task-item:has(.md-task-check:checked) { color: var(--muted); }
+.md-alert { padding: .85em 1.15em; color: var(--text); background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; }
+.md-alert > p { text-indent: 0; font-size: 16.5px; }
+.md-alert > p:last-child { margin-bottom: 0; }
+.md-alert-title { display: flex; align-items: center; gap: .5em; margin-bottom: .45em !important; color: var(--accent); font-size: 13px !important; font-weight: 700; letter-spacing: .02em; }
+.md-alert-warning, .md-alert-caution, .md-alert-danger, .md-alert-failure, .md-alert-bug { background: color-mix(in srgb, var(--warm) 12%, transparent); border-left-color: var(--warm); }
+.md-alert-warning .md-alert-title, .md-alert-caution .md-alert-title, .md-alert-danger .md-alert-title, .md-alert-failure .md-alert-title, .md-alert-bug .md-alert-title { color: var(--warm); }
+.md-footnotes { margin-top: 3em; color: var(--muted); font-size: 15px; }
+.md-footnotes hr { width: 100%; margin: 0 0 1.2em; }
+.md-footnotes ol { padding-left: 1.5em; font-size: inherit; list-style-position: outside; list-style-type: decimal; }
+.md-footnotes li { margin-bottom: .5em; }
+.md-footnotes p { display: inline; margin: 0; font-size: inherit; line-height: 1.8; text-indent: 0; }
+.md-footnote-back { margin-left: .4em; text-decoration: none; }
+.md-footnote-ref a { padding: 0 .12em; text-decoration: none; }
+.chapter-body kbd { padding: .12em .45em; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; font-family: Consolas, "Courier New", monospace; font-size: .82em; }
+.chapter-body mark { padding: .05em .15em; color: inherit; background: color-mix(in srgb, #f2c94c 45%, transparent); border-radius: 3px; }
+.chapter-body sub, .chapter-body sup { font-size: .72em; line-height: 0; }
+.chapter-body details { margin: 1.4em 0; padding: .75em 1.1em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; }
+.chapter-body summary { color: var(--text); cursor: pointer; font-weight: 600; }
+.chapter-body details[open] summary { margin-bottom: .6em; }
+.chapter-body dl { margin: 1.3em 0; font-size: 17px; line-height: 1.9; }
+.chapter-body dt { font-weight: 700; }
+.chapter-body dd { margin: .2em 0 .7em 1.6em; color: var(--muted); }
+.chapter-body pre[data-lang]::before { display: block; margin-bottom: .7em; color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; content: attr(data-lang); }
+.chapter-body :target { animation: md-target-flash 1.6s ease-out; }
+@keyframes md-target-flash { from { background: var(--accent-soft); } to { background: transparent; } }
 .search-match { padding: .05em .08em; color: inherit; background: color-mix(in srgb, #f2c94c 58%, transparent); border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .search-match.active { outline: 2px solid color-mix(in srgb, var(--accent) 68%, transparent); outline-offset: 1px; }
 .annotation-mark { padding: .03em .06em; color: inherit; background: color-mix(in srgb, var(--warm) 23%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--warm) 58%, transparent); border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }

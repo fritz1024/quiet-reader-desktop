@@ -127,11 +127,19 @@ export function extractLeadingPlainChapter(content) {
   return { title: match[1].trim(), content: source.slice(match[0].length).trimStart() };
 }
 
+// Notes exported from Obsidian and static-site generators open with a `---`
+// front matter block. The title heading sits after it, and the block itself is
+// kept in the content so editing and saving still see the whole file.
+const FRONT_MATTER = /^[ \t]*---[ \t]*\r?\n[\s\S]*?\r?\n[ \t]*(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/;
+
 export function extractLeadingMarkdownChapter(content) {
   const source = String(content || '').replace(/^\uFEFF/, '');
-  const match = source.match(/^[ \t\r\n]*#\s+(.+?)\s*#?[ \t]*(?:\r?\n|$)/);
+  const frontMatter = source.match(FRONT_MATTER);
+  const offset = frontMatter ? frontMatter[0].length : 0;
+  const match = source.slice(offset).match(/^[ \t\r\n]*#\s+(.+?)\s*#?[ \t]*(?:\r?\n|$)/);
   if (!match) return null;
-  return { title: markdownToPlainText(match[1]), content: source.slice(match[0].length).trimStart() };
+  const body = source.slice(offset + match[0].length).trimStart();
+  return { title: markdownToPlainText(match[1]), content: source.slice(0, offset) + body };
 }
 
 export function inferChapterTypes(chapters) {
@@ -144,7 +152,9 @@ export function inferChapterTypes(chapters) {
 }
 
 export function getMarkdownTitle(content) {
-  const match = content.match(/^\s*#\s+(.+?)\s*#*\s*$/m);
+  // Skip front matter so a `title: # x` field cannot pose as the heading.
+  const source = String(content || '');
+  const match = source.slice(source.match(FRONT_MATTER)?.[0].length || 0).match(/^\s*#\s+(.+?)\s*#*\s*$/m);
   return match ? markdownToPlainText(match[1]) : '';
 }
 
@@ -508,7 +518,14 @@ export function getChapterBodyContent(chapter) {
   if (chapter.isPdf || chapter.isEpubFile) return '';
   if (chapter.content === null) return '（正在加载…）';
   let content = (chapter.content || '').replace(/^\uFEFF/, '');
-  if (chapter.isMarkdown) return content.replace(/^(?:[ \t]*\r?\n)*[ \t]*#\s+.*?[ \t]*#?[ \t]*(?:\r?\n|$)/, '').trimStart();
+  if (chapter.isMarkdown) {
+    // The title heading is shown in the chapter header, so drop it from the
+    // body — including when a front matter block comes first.
+    const frontMatter = content.match(FRONT_MATTER);
+    const offset = frontMatter ? frontMatter[0].length : 0;
+    const body = content.slice(offset).replace(/^(?:[ \t]*\r?\n)*[ \t]*#\s+.*?[ \t]*#?[ \t]*(?:\r?\n|$)/, '').trimStart();
+    return content.slice(0, offset) + body;
+  }
   const heading = content.match(/^\s*((?:第\s*[一二三四五六七八九十百千万零〇\d]+\s*[章节卷集回部篇][^\r\n]*|Chapter\s+\d+[^\r\n]*))[ \t]*(?:\r?\n|$)/i);
   const headingMatchesTitle = heading && String(heading[1]).trim() === String(chapter.title || '').trim();
   return (headingMatchesTitle && isReasonablePlainChapterTitle(heading[1]) ? content.slice(heading[0].length) : content).trimStart();
