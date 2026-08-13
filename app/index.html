@@ -83,20 +83,32 @@
     </div>
 
     <aside class="sidebar scrollbar-thin" id="sidebar" aria-label="章节目录">
-      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] px-5 py-5 backdrop-blur-md">
+      <!-- Header and tabs stick as one unit: the header's height varies with the
+           book name and word count, so a fixed offset for the tabs would drift. -->
+      <div class="sidebar-head">
+      <div class="flex items-center justify-between border-b border-line px-5 py-5">
         <div class="min-w-0">
           <div class="text-[13px] font-bold">章节目录</div>
           <div class="mt-1 truncate text-[11px] text-muted" id="sidebarBookName">尚未导入书籍</div>
           <div class="mt-1 text-[11px] text-muted" id="bookWordCount">正文 0 字</div>
         </div>
-        <span class="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--accent)]" id="chapterCount">0 章</span>
+        <span class="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--accent)]" id="chapterCount">0 篇</span>
       </div>
-      <div class="px-3 py-3">
-        <div class="mb-2 flex items-center justify-between px-2 text-[10px] font-bold uppercase tracking-[.12em] text-muted">
-          <span>Contents</span><i class="fa-solid fa-list-ul text-[10px]"></i>
-        </div>
+      <div class="sidebar-tabs" role="tablist" aria-label="侧边栏视图">
+        <button class="sidebar-tab active" id="sidebarTabFiles" type="button" role="tab" aria-selected="true" aria-controls="sidebarPanelFiles" data-sidebar-tab="files">文件</button>
+        <button class="sidebar-tab" id="sidebarTabOutline" type="button" role="tab" aria-selected="false" aria-controls="sidebarPanelOutline" data-sidebar-tab="outline">大纲</button>
+      </div>
+      </div>
+
+      <div class="px-3 py-3" id="sidebarPanelFiles" role="tabpanel" aria-labelledby="sidebarTabFiles">
         <ul class="chapter-list space-y-1" id="chapterList"></ul>
         <div class="hidden px-3 py-8 text-center text-xs text-muted" id="emptyChapterList">导入文件夹后，章节会显示在这里</div>
+      </div>
+
+      <div class="hidden px-3 py-3" id="sidebarPanelOutline" role="tabpanel" aria-labelledby="sidebarTabOutline">
+        <div class="outline-current" id="outlineCurrentFile"></div>
+        <ul class="chapter-list space-y-1" id="outlineList"></ul>
+        <div class="px-3 py-8 text-center text-xs text-muted" id="emptyOutline">当前文件没有可用的大纲</div>
       </div>
     </aside>
 
@@ -410,6 +422,6 @@
   </div>
 
 
-  <script type="module" src="js/startup.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

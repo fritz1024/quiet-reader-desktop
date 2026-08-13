@@ -318,6 +318,46 @@ button:focus-visible, [role="button"]:focus-visible, input:focus-visible { outli
 .chapter-group-header .group-chevron.collapsed { transform: rotate(-90deg); }
 .chapter-group-header .group-count { font-weight: 400; opacity: 0.6; margin-left: auto; font-size: 10px; }
 .chapter-group-list.collapsed { display: none; }
+
+/* Sidebar tabs: 文件 / 大纲 */
+.sidebar-head { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); }
+.sidebar-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
+.sidebar-tab { position: relative; padding: 13px 8px 12px; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; border: none; background: none; transition: color .15s ease; }
+.sidebar-tab:hover { color: var(--text); }
+.sidebar-tab.active { color: var(--accent); }
+.sidebar-tab.active::after { content: ""; position: absolute; right: 18%; bottom: -1px; left: 18%; height: 3px; background: var(--accent); border-radius: 99px 99px 0 0; }
+.sidebar-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
+
+/* File tree */
+.tree-folder { display: flex; align-items: center; gap: 7px; width: 100%; padding: 7px 10px; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; user-select: none; border: none; border-radius: 8px; background: none; text-align: left; transition: color .15s ease, background .15s ease; }
+.tree-folder:hover { color: var(--text); background: var(--surface-2); }
+.tree-folder .tree-chevron { flex: 0 0 9px; font-size: 9px; transition: transform .2s ease; }
+.tree-folder .tree-chevron.collapsed { transform: rotate(-90deg); }
+.tree-folder .tree-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-folder .tree-count { margin-left: auto; padding-left: 6px; font-size: 10px; font-weight: 400; opacity: .6; }
+.tree-children { list-style: none; }
+.tree-children.collapsed { display: none; }
+.tree-indent { padding-left: 13px; }
+
+/* Outline */
+.outline-current { padding: 2px 12px 9px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.outline-current strong { color: var(--text); font-weight: 700; }
+/* A row is [chevron | label]; the chevron toggles, the label navigates. */
+.outline-row { display: flex; gap: 2px; align-items: flex-start; }
+.outline-toggle { flex: 0 0 18px; display: grid; place-items: center; padding: 8px 0 0; color: var(--muted); cursor: pointer; border: none; background: none; transition: color .15s ease; }
+.outline-toggle:hover { color: var(--accent); }
+.outline-toggle .outline-chevron { font-size: 9px; transition: transform .2s ease; }
+.outline-toggle .outline-chevron.collapsed { transform: rotate(-90deg); }
+.outline-toggle-spacer { flex: 0 0 18px; }
+.outline-item { display: flex; flex: 1 1 auto; gap: 8px; align-items: flex-start; min-width: 0; padding: 8px 10px; color: var(--muted); font-size: 12.5px; line-height: 1.5; text-align: left; cursor: pointer; border: 1px solid transparent; border-radius: 8px; background: none; transition: color .15s ease, background .15s ease, border-color .15s ease; }
+.outline-item:hover { color: var(--text); background: var(--surface-2); }
+.outline-item.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 15%, transparent); }
+.outline-item .outline-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outline-level-2 { padding-left: 14px; }
+.outline-level-3 { padding-left: 28px; }
+.outline-level-4 { padding-left: 42px; }
+.outline-level-3 .outline-item { font-size: 12px; opacity: .92; }
+.outline-level-4 .outline-item { font-size: 11.5px; opacity: .85; }
 .bottom-nav { --sidebar-width: 292px; position: fixed; left: 50%; bottom: 18px; z-index: 50; display: flex; gap: 3px; padding: 4px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 10px 30px var(--shadow); opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: left .24s ease, opacity .18s ease, transform .18s ease; backdrop-filter: blur(14px); }
 .bottom-nav.sidebar-open { left: calc(50% + var(--sidebar-width) / 2); }
 .reader-shell:hover ~ .bottom-nav, .bottom-nav:hover, .bottom-nav:focus-within { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }

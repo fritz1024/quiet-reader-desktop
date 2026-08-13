@@ -34,7 +34,8 @@ import {
 import {
   naturalCompare, getWordCount, getBookWordCount, markdownToPlainText,
   normalizePunctuation, getPunctuationOptions, setPunctuationOptions,
-  renderCustomRules, getCustomRules, addCustomRule, removeCustomRule, toggleCustomRule
+  renderCustomRules, getCustomRules, addCustomRule, removeCustomRule, toggleCustomRule,
+  normalizeFileItems
 } from './text-utils.js';
 import {
   normalizeChapters, cloneChapters, getChapterSourceKey,
@@ -51,7 +52,8 @@ import {
   setDirectEditing, exitDirectEditing, saveDirectEdit,
   getDirectEditSnapshot, hasUnsavedDirectEdit, askUnsavedAction,
   updateEditorResult, handleCloseRequest, askAppDataImport,
-  closeReaderDialog, getCurrentFileChapters
+  closeReaderDialog, getCurrentFileChapters,
+  getDirectEditContent, saveAndExitDirectEditing
 } from './editing.js';
 import { replacePunctuation, undoPunctuation } from './punctuation-replace.js';
 import { renderMarkdown } from './markdown.js';
@@ -63,7 +65,8 @@ import {
   replaceSelectionText, closeReplaceDialog, applyReplaceDialog,
   saveContextMenuImage, setContextMenuImageSrc, contextMenu
 } from './search.js';
-import { renderChapterList, renderChapter, sidebarCollapsedGroups, setSidebarCollapsedGroups } from './chapter-render.js';
+import { renderChapterList, renderChapter } from './chapter-render.js';
+import { switchSidebarTab, setCollapsedFolders, sidebarTab } from './sidebar.js';
 import {
   renderPdfViewer, cleanupPdfDocument, pdfGoToPage, pdfZoomIn,
   pdfZoomOut, isCurrentChapterPdf, savePdfPage, renderPdfPage
@@ -138,7 +141,7 @@ function showLoading(show) { $('loading').classList.toggle('show', show); }
 async function loadParsedChapters(chapters, bookTitle, folderHandle = null, options = {}) {
   if (!chapters.length) { showToast('没有解析出可阅读的章节'); return false; }
   if (state.directEditing && !(await exitDirectEditing())) return false;
-  if (!options.isUpdate && !options.restoring) setSidebarCollapsedGroups({});
+  if (!options.isUpdate && !options.restoring) setCollapsedFolders({});
   syncEditedChapterEdits();
   const parsedChapters = inferChapterTypes(chapters);
   const previousEdits = { ...state.chapterEdits };
@@ -488,7 +491,8 @@ function saveSettings() {
     fontFamily: state.fontFamily,
     readingPreset: state.readingPreset,
     readerPaperPadding: state.readerPaperPadding,
-    readerPaperPaddingMobile: state.readerPaperPaddingMobile
+    readerPaperPaddingMobile: state.readerPaperPaddingMobile,
+    sidebarTab
   });
 }
 function loadSettings() {
@@ -507,6 +511,8 @@ function loadSettings() {
     readerPaperPaddingMobile: saved?.readerPaperPaddingMobile || preset.paperPaddingMobile
   });
   document.body.dataset.theme = state.theme; document.querySelectorAll('.theme-swatch').forEach(el => el.classList.toggle('active', el.dataset.theme === state.theme));
+  // Restore the tab without rendering: no book is loaded this early.
+  switchSidebarTab(saved?.sidebarTab === 'outline' ? 'outline' : 'files', { render: false });
   applyReadingSettings();
 }
 function updateHistoryProgress() {
@@ -651,6 +657,8 @@ $('mobileExportBtn').addEventListener('click', event => {
 $('loadDemoBtn').addEventListener('click', loadDemo);
 $('homeBtn').addEventListener('click', () => { showHome(); });
 $('toggleSidebar').addEventListener('click', () => toggleSidebar());
+$('sidebarTabFiles').addEventListener('click', () => { switchSidebarTab('files'); saveSettings(); });
+$('sidebarTabOutline').addEventListener('click', () => { switchSidebarTab('outline'); saveSettings(); });
 $('toolbarCopyBtn').addEventListener('click', copyCurrentChapter);
 $('searchBtn').addEventListener('click', event => {
   event.stopPropagation();

@@ -1,5 +1,5 @@
 // Split from index.html — maintain in separate files under js/
-import { state, $, readerContainer, readerContent, readerDialog, readerDialogTitle, readerDialogMessage, dialogKeepEditingBtn, dialogDiscardBtn, dialogSaveBtn, pendingReaderDialogResolve, setPendingReaderDialogResolve, closeRequestInProgress, setCloseRequestInProgress, desktopApi, isDesktop } from './state.js';
+import { state, $, readerContainer, readerContent, readerDialog, readerDialogTitle, readerDialogMessage, dialogKeepEditingBtn, dialogDiscardBtn, dialogSaveBtn, pendingReaderDialogResolve, setPendingReaderDialogResolve, closeRequestInProgress, setCloseRequestInProgress, desktopApi, isDesktop, backupPanel } from './state.js';
 import { getChapterSourceKey, saveChapterEdits, canSaveChapterToSource, getChapterSourceDocumentKey, saveChapterToSource, getSourceSaveNotice } from './chapter.js';
 import { sanitizeEpubHtml, getChapterBodyContent } from './parser.js';
 import { renderChapter, renderChapterList } from './chapter-render.js';

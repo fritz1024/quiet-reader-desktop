@@ -1,11 +1,15 @@
 // Split from index.html — maintain in separate files under js/
-import { state, isDesktop, desktopApi, $, readerContainer, historyStorageKey, historyLimit } from './state.js';
+import { state, isDesktop, desktopApi, $, readerContainer, historyStorageKey, historyLimit, desktopStorage } from './state.js';
 import { getStoredJson, setStoredJson, escapeHtml, formatNumber, getSavedLibrary, getHistoryIdentity, getSavedProgress, getProgressStorageKey, createLibraryIdentity, loadMarks, saveLibrarySnapshot } from './storage.js';
 import { showToast } from './loader.js';
 import { getChapterBodyContent } from './parser.js';
 import { getWordCount, getBookWordCount } from './text-utils.js';
 import { loadFromDesktopFolder, loadDesktopBookPath } from './folder-io.js';
 import { renderChapter } from './chapter-render.js';
+// Cycle: startup.js is the entry and imports history.js. Safe because
+// loadHistoryEntry is a hoisted function declaration only called from a click
+// handler, long after both module bodies have finished evaluating.
+import { loadHistoryEntry } from './startup.js';
 
 export function getChapterKey(chapter) {
   return String(chapter?.sourceKey || `${chapter?.filename || ''}\u0000${chapter?.title || ''}`);

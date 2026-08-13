@@ -1,8 +1,9 @@
 // Split from index.html — maintain in separate files under js/
-import { state, isDesktop, desktopApi, $, textFilePattern, pdfFilePattern, settingsPanel, importPanel, editorPanel, backupPanel, searchPanel, marksPanel, exportPanel, mobileMorePanel, readerContainer, classifyFileCategory } from './state.js';
+import { state, isDesktop, desktopApi, $, textFilePattern, pdfFilePattern, settingsPanel, importPanel, editorPanel, backupPanel, searchPanel, marksPanel, exportPanel, mobileMorePanel, readerContainer, classifyFileCategory, folderInput } from './state.js';
 import { getSavedFolder, saveFolderHandle } from './storage.js';
 import { canSaveChapterToSource, getChapterSourceDocumentKey } from './chapter.js';
 import { showToast, showLoading, loadFromFileItems, loadBookFile } from './loader.js';
+import { restoreSourceBackup } from './editing.js';
 
 export function setFolderSource(handle) {
   state.folderHandle = handle || null;
@@ -92,16 +93,19 @@ export async function requestFolderPermission(handle, allowRequest) {
   }
 }
 
-export async function collectDirectoryFiles(handle, prefix = '') {
+// rootName lets a directly-picked 正文 folder still classify as 正文; its files
+// have no folder segment in relativePath. Same reasoning as main.cjs.
+export async function collectDirectoryFiles(handle, prefix = '', rootName = handle?.name || '') {
   const files = [];
   for await (const entry of handle.values()) {
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.kind === 'file') {
-      if (textFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category: classifyFileCategory(relativePath) });
-      else if (pdfFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category: classifyFileCategory(relativePath), isPdf: true });
-      else if (/.epub$/i.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category: classifyFileCategory(relativePath), isEpub: true });
+      const category = classifyFileCategory(relativePath, rootName);
+      if (textFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category });
+      else if (pdfFilePattern.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category, isPdf: true });
+      else if (/.epub$/i.test(entry.name)) files.push({ file: await entry.getFile(), relativePath, category, isEpub: true });
     } else if (entry.kind === 'directory') {
-      files.push(...await collectDirectoryFiles(entry, relativePath));
+      files.push(...await collectDirectoryFiles(entry, relativePath, rootName));
     }
   }
   return files;

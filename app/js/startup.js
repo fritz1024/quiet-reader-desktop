@@ -184,4 +184,7 @@ export async function startReader() {
   await showHome();
 }
 
-startReader();
+// startReader() is deliberately NOT called here. startup.js sits in an import
+// cycle (history.js needs loadHistoryEntry), so any module imported first would
+// run this module body while state.js was still mid-evaluation, and startReader
+// would read isDesktop from the temporal dead zone. main.js owns the call.
