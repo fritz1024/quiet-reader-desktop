@@ -1,6 +1,6 @@
 {
   "name": "quiet-reader-desktop",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A local EPUB reader with editing support.",
   "main": "main.cjs",
   "private": true,
