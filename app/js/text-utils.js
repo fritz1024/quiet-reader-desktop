@@ -2,13 +2,33 @@
 import { state, $, textFilePattern, classifyFileCategory } from './state.js';
 import { escapeHtml } from './storage.js';
 import { saveSettings } from './loader.js';
+import { getChapterBodyContent } from './parser.js';
 
 export function normalizeFileItems(files, pattern = textFilePattern) {
-  return Array.from(files)
-    .filter(file => pattern.test(file.name))
+  const list = Array.from(files).filter(file => pattern.test(file.name));
+  // webkitRelativePath from <input webkitdirectory> always starts with the picked
+  // folder's own name, unlike the desktop/File-System-Access paths which are
+  // relative to it. Split that root off and pass it as rootName so
+  // classifyFileCategory sees the same shape of path everywhere -- otherwise
+  // 正文/第01章.md arrives as MyBook/正文/第01章.md, the top segment is MyBook,
+  // and every 正文 file is misfiled as reference (word total reads 0).
+  // relativePath itself is left alone: it becomes chapter.filename, which the
+  // sidebar tree, source keys and the book title all read.
+  const isFolderPick = list.some(file => String(file.webkitRelativePath || '').includes('/'));
+  return list
     .map(file => {
       const relativePath = file.webkitRelativePath || file.name;
-      return { file, relativePath, category: classifyFileCategory(relativePath) };
+      const segments = relativePath.split('/');
+      const hasWrapper = isFolderPick && segments.length > 1;
+      return {
+        file,
+        relativePath,
+        // Hand-picked loose files have no folder structure to judge by, so they
+        // all count as 正文 -- the user chose exactly these files as the book.
+        category: isFolderPick
+          ? classifyFileCategory(hasWrapper ? segments.slice(1).join('/') : relativePath, hasWrapper ? segments[0] : '')
+          : 'content'
+      };
     })
     .sort((a, b) => naturalCompare(a.relativePath, b.relativePath));
 }
@@ -22,9 +42,13 @@ export function getWordCount(text, isMarkdown = false) {
   return readable.trim().replace(/\s+/g, '').length;
 }
 
+// Sum of every 正文 file, whether or not it has been opened yet. Lazy chapters
+// carry a wordCount computed by the main process at import time, so an unread
+// file still contributes and the total does not climb as you read.
 export function getBookWordCount() {
   return state.chapters
-    .filter(chapter => !chapter.isCover && chapter.category !== 'reference' && !chapter.isPdf && !chapter.isEpubFile)
+    .filter(chapter => !chapter.isCover && (chapter.category || 'content') !== 'reference'
+      && !chapter.isPdf && !chapter.isEpubFile)
     .reduce((total, chapter) => {
       if (typeof chapter.wordCount === 'number' && chapter.wordCount > 0) return total + chapter.wordCount;
       if (chapter.content === null) return total;
@@ -66,7 +90,7 @@ export function normalizePunctuation(text, options) {
     if (inCode || isInsideUrl(source, index)) { result += character; continue; }
 
     if (character === '"' && options.quotes) {
-      result += doubleQuoteOpen ? '"' : '"';
+      result += doubleQuoteOpen ? '“' : '”';
       doubleQuoteOpen = !doubleQuoteOpen;
       changes += 1;
     } else if (character === "'" && options.quotes) {

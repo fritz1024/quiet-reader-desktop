@@ -82,28 +82,33 @@ export const bookFilePattern = /\.(txt|md|markdown|epub|zip|pdf)$/i;
 export const pdfFilePattern = /\.pdf$/i;
 export const maxBookFileBytes = 1024 * 1024 * 1024;
 export const maxTextFileBytes = 1024 * 1024 * 1024;
-export const REFERENCE_FOLDER_KEYWORDS = ['设定', '世界观', '人物', '大纲', 'outline', 'notes', 'characters', 'worldbuilding', '参考', '资料', '背景', '草稿', '灵感', 'setting', 'reference', '附录', 'extras', '备注'];
-export const CONTENT_FOLDER_KEYWORDS = ['正文', '章节', 'chapters', 'content', '卷'];
-export const REFERENCE_FILE_KEYWORDS = ['readme', 'notes', '设定', '大纲', '人物', '世界观', 'outline', 'character', 'worldbuilding', '简介', '背景', '草稿', '灵感', 'setting', 'reference', '附录', '备注'];
+export const CONTENT_FOLDER_NAMES = ['正文', '章节', 'chapters', 'content'];
 
-export function classifyFileCategory(relativePath) {
-  const parts = relativePath.split('/');
+// Keep in sync with classifyFileCategory in main.cjs. The top-level folder alone
+// decides: 正文/ (and its aliases) is 正文, everything else is reference. This
+// used to scan every path segment for keywords and take the last match, which
+// misfiled real 正文 files whose subfolder happened to be named something like
+// "第三卷 背景" -- they dropped out of the word total and were skipped by the
+// sidebar count. Deeper folder names are now irrelevant.
+//
+// relativePath must NOT include the imported folder's own name; pass that as
+// rootName instead. A 正文 root makes everything under it 正文 at any depth.
+const isContentFolderName = (name) => {
+  const lower = String(name || '').toLowerCase();
+  return CONTENT_FOLDER_NAMES.some(k => lower === k.toLowerCase() || lower.startsWith(k.toLowerCase()));
+};
+
+// rootName is the imported folder's own name, needed when the user picks the
+// 正文 folder directly and its files have no folder segment in relativePath.
+export function classifyFileCategory(relativePath, rootName = '') {
+  const parts = String(relativePath || '').split('/');
   const filename = parts.pop() || '';
   const ext = filename.match(/\.[^.]+$/)?.[0].toLowerCase() || '';
   if (ext === '.pdf' || ext === '.epub') return 'content';
-  const nameWithoutExt = filename.replace(/\.[^.]+$/, '').toLowerCase();
-  let lastMatch = null;
-  for (let i = 0; i < parts.length; i++) {
-    const folderLower = parts[i].toLowerCase();
-    if (REFERENCE_FOLDER_KEYWORDS.some(k => folderLower.includes(k.toLowerCase()))) {
-      lastMatch = 'reference';
-    } else if (CONTENT_FOLDER_KEYWORDS.some(k => folderLower.includes(k.toLowerCase()))) {
-      lastMatch = 'content';
-    }
-  }
-  if (lastMatch) return lastMatch;
-  if (REFERENCE_FILE_KEYWORDS.some(k => nameWithoutExt.includes(k.toLowerCase()))) return 'reference';
-  return 'content';
+  if (isContentFolderName(rootName)) return 'content';
+  if (parts.length === 0) return 'reference';
+  if (isContentFolderName(parts[0])) return 'content';
+  return 'reference';
 }
 export const maxZipEntries = 5000;
 export const maxZipUncompressedBytes = 512 * 1024 * 1024;

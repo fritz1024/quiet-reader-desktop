@@ -10,14 +10,24 @@ const BOOK_EXTENSIONS = new Set(['.epub', '.txt', '.md', '.markdown', '.zip', '.
 const TEXT_EXTENSIONS = new Set(['.txt', '.md', '.markdown']);
 const CONTENT_FOLDER_NAMES = ['正文', '章节', 'chapters', 'content'];
 
-function classifyFileCategory(relativePath) {
+const isContentFolderName = (name) => {
+  const lower = String(name || '').toLowerCase();
+  return CONTENT_FOLDER_NAMES.some(k => lower === k.toLowerCase() || lower.startsWith(k.toLowerCase()));
+};
+
+// Keep in sync with classifyFileCategory in app/js/state.js.
+// rootName is the name of the imported folder itself: when the user picks the
+// 正文 folder directly, its files sit at the path root with no folder segment,
+// and without this they would all be filed as reference.
+function classifyFileCategory(relativePath, rootName = '') {
   const parts = relativePath.split('/');
   const filename = parts.pop() || '';
   const ext = path.extname(filename).toLowerCase();
   if (ext === '.pdf' || ext === '.epub') return 'content';
+  // A 正文 root makes everything beneath it 正文, at any depth.
+  if (isContentFolderName(rootName)) return 'content';
   if (parts.length === 0) return 'reference';
-  const topFolder = parts[0].toLowerCase();
-  if (CONTENT_FOLDER_NAMES.some(k => topFolder === k.toLowerCase() || topFolder.startsWith(k.toLowerCase()))) return 'content';
+  if (isContentFolderName(parts[0])) return 'content';
   return 'reference';
 }
 
@@ -640,14 +650,14 @@ async function readBookFile(filePath) {
   };
 }
 
-async function collectFolderItems(folderPath, prefix = '') {
+async function collectFolderItems(folderPath, prefix = '', rootName = path.basename(folderPath)) {
   const entries = await fs.readdir(folderPath, { withFileTypes: true });
   const items = [];
   for (const entry of entries) {
     const fullPath = path.join(folderPath, entry.name);
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      items.push(...await collectFolderItems(fullPath, relativePath));
+      items.push(...await collectFolderItems(fullPath, relativePath, rootName));
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
       if (TEXT_EXTENSIONS.has(ext)) {
@@ -680,7 +690,7 @@ async function collectFolderItems(folderPath, prefix = '') {
           lazyLoad: true,
           encoding: '',
           bom: false,
-          category: classifyFileCategory(relativePath),
+          category: classifyFileCategory(relativePath, rootName),
           wordCount
         });
       } else if (ext === '.pdf') {
@@ -692,7 +702,7 @@ async function collectFolderItems(folderPath, prefix = '') {
           lazyLoad: true,
           encoding: '',
           bom: false,
-          category: classifyFileCategory(relativePath)
+          category: classifyFileCategory(relativePath, rootName)
         });
       } else if (ext === '.epub') {
         items.push({
@@ -703,7 +713,7 @@ async function collectFolderItems(folderPath, prefix = '') {
           lazyLoad: true,
           encoding: '',
           bom: false,
-          category: classifyFileCategory(relativePath)
+          category: classifyFileCategory(relativePath, rootName)
         });
       }
     }
